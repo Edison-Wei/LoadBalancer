@@ -140,5 +140,4 @@ install(FILES examples/proxy.args DESTINATION share/load-balancer/examples COMPO
 install(FILES "${PROJECT_BINARY_DIR}/build-info.json" DESTINATION share/load-balancer COMPONENT Runtime)
 install(FILES docs/protocol-support.md docs/security.md DESTINATION share/load-balancer/docs COMPONENT Runtime)
 install(FILES monitoring/README.md DESTINATION share/load-balancer/monitoring COMPONENT Runtime)
-install(FILES LICENSE DESTINATION share/load-balancer COMPONENT Runtime)
 install(FILES docs/release-usage.md DESTINATION . RENAME README.md COMPONENT Runtime)

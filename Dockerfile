@@ -12,7 +12,6 @@ COPY scripts/run_proxy.py ./scripts/
 COPY examples ./examples
 COPY docs/security.md docs/protocol-support.md docs/release-usage.md ./docs/
 COPY monitoring/README.md ./monitoring/
-COPY LICENSE ./LICENSE
 ARG LB_GIT_REVISION=unknown
 RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_CXX_COMPILER=g++-14 -DCMAKE_C_COMPILER=gcc-14 -DBUILD_TESTING=OFF -DLB_GIT_REVISION=${LB_GIT_REVISION} \
