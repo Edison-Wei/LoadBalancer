@@ -1,0 +1,308 @@
+{
+  "platform": "macOS-26.2-arm64-arm-64bit",
+  "machine": "arm64",
+  "cpu_count": 10,
+  "python": "3.12.4 (main, Jun  6 2024, 18:26:44) [Clang 15.0.0 (clang-1500.3.9.4)]",
+  "git_commit": "d0773da1da1d711bdf2336a493a01f8d432067ea",
+  "git_dirty": true,
+  "seed": 8,
+  "duration_seconds": 3,
+  "warmup_seconds": 1,
+  "trials": 3,
+  "threads": 2,
+  "cooldown_seconds": 5,
+  "schedule": [
+    {
+      "name": "connections-500",
+      "backends": 3,
+      "workers": 4,
+      "connections": 500,
+      "trial": 1
+    },
+    {
+      "name": "connections-1000",
+      "backends": 3,
+      "workers": 4,
+      "connections": 1000,
+      "trial": 1
+    },
+    {
+      "name": "connections-10",
+      "backends": 3,
+      "workers": 4,
+      "connections": 10,
+      "trial": 1
+    },
+    {
+      "name": "workers-1",
+      "backends": 3,
+      "workers": 1,
+      "connections": 100,
+      "trial": 1
+    },
+    {
+      "name": "quiescent-probes",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "interval": 60000,
+      "trial": 1
+    },
+    {
+      "name": "proxy-1b-4w",
+      "backends": 1,
+      "workers": 4,
+      "connections": 100,
+      "trial": 1
+    },
+    {
+      "name": "workers-0",
+      "backends": 3,
+      "workers": 0,
+      "connections": 100,
+      "trial": 1
+    },
+    {
+      "name": "direct",
+      "backends": 1,
+      "workers": null,
+      "connections": 100,
+      "trial": 1
+    },
+    {
+      "name": "controlled-crash",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "failure": true,
+      "trial": 1
+    },
+    {
+      "name": "proxy-3b-4w",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "trial": 1
+    },
+    {
+      "name": "workers-8",
+      "backends": 3,
+      "workers": 8,
+      "connections": 100,
+      "trial": 1
+    },
+    {
+      "name": "workers-2",
+      "backends": 3,
+      "workers": 2,
+      "connections": 100,
+      "trial": 1
+    },
+    {
+      "name": "proxy-5b-4w",
+      "backends": 5,
+      "workers": 4,
+      "connections": 100,
+      "trial": 1
+    },
+    {
+      "name": "proxy-1b-4w",
+      "backends": 1,
+      "workers": 4,
+      "connections": 100,
+      "trial": 2
+    },
+    {
+      "name": "proxy-3b-4w",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "trial": 2
+    },
+    {
+      "name": "workers-1",
+      "backends": 3,
+      "workers": 1,
+      "connections": 100,
+      "trial": 2
+    },
+    {
+      "name": "workers-2",
+      "backends": 3,
+      "workers": 2,
+      "connections": 100,
+      "trial": 2
+    },
+    {
+      "name": "direct",
+      "backends": 1,
+      "workers": null,
+      "connections": 100,
+      "trial": 2
+    },
+    {
+      "name": "connections-10",
+      "backends": 3,
+      "workers": 4,
+      "connections": 10,
+      "trial": 2
+    },
+    {
+      "name": "connections-500",
+      "backends": 3,
+      "workers": 4,
+      "connections": 500,
+      "trial": 2
+    },
+    {
+      "name": "proxy-5b-4w",
+      "backends": 5,
+      "workers": 4,
+      "connections": 100,
+      "trial": 2
+    },
+    {
+      "name": "connections-1000",
+      "backends": 3,
+      "workers": 4,
+      "connections": 1000,
+      "trial": 2
+    },
+    {
+      "name": "workers-8",
+      "backends": 3,
+      "workers": 8,
+      "connections": 100,
+      "trial": 2
+    },
+    {
+      "name": "quiescent-probes",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "interval": 60000,
+      "trial": 2
+    },
+    {
+      "name": "controlled-crash",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "failure": true,
+      "trial": 2
+    },
+    {
+      "name": "workers-0",
+      "backends": 3,
+      "workers": 0,
+      "connections": 100,
+      "trial": 2
+    },
+    {
+      "name": "controlled-crash",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "failure": true,
+      "trial": 3
+    },
+    {
+      "name": "proxy-1b-4w",
+      "backends": 1,
+      "workers": 4,
+      "connections": 100,
+      "trial": 3
+    },
+    {
+      "name": "proxy-5b-4w",
+      "backends": 5,
+      "workers": 4,
+      "connections": 100,
+      "trial": 3
+    },
+    {
+      "name": "connections-1000",
+      "backends": 3,
+      "workers": 4,
+      "connections": 1000,
+      "trial": 3
+    },
+    {
+      "name": "proxy-3b-4w",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "trial": 3
+    },
+    {
+      "name": "direct",
+      "backends": 1,
+      "workers": null,
+      "connections": 100,
+      "trial": 3
+    },
+    {
+      "name": "workers-2",
+      "backends": 3,
+      "workers": 2,
+      "connections": 100,
+      "trial": 3
+    },
+    {
+      "name": "connections-500",
+      "backends": 3,
+      "workers": 4,
+      "connections": 500,
+      "trial": 3
+    },
+    {
+      "name": "workers-0",
+      "backends": 3,
+      "workers": 0,
+      "connections": 100,
+      "trial": 3
+    },
+    {
+      "name": "workers-8",
+      "backends": 3,
+      "workers": 8,
+      "connections": 100,
+      "trial": 3
+    },
+    {
+      "name": "connections-10",
+      "backends": 3,
+      "workers": 4,
+      "connections": 10,
+      "trial": 3
+    },
+    {
+      "name": "workers-1",
+      "backends": 3,
+      "workers": 1,
+      "connections": 100,
+      "trial": 3
+    },
+    {
+      "name": "quiescent-probes",
+      "backends": 3,
+      "workers": 4,
+      "connections": 100,
+      "interval": 60000,
+      "trial": 3
+    }
+  ],
+  "fd_limits": [
+    1048575,
+    9223372036854775807
+  ],
+  "binaries": {
+    "build/tools/wrk-4.2.0/wrk": "7b9b401c5aff61ff991ca02bcd8a7b43c0259159af204caa3574ffe74305877a",
+    "build/tools/prometheus-3.5.0.darwin-arm64/prometheus": "98c310ed859c9137c1fea3d9d341c4154e51561e2c86f72b50bb963a616c48e5",
+    "/Users/edwei/Desktop/LoadBalancer/build/release/load_balancer": "2e1d30710bed4545676861246199ce5f229bde590cfd6ee51e35957b5c1e1355",
+    "/Users/edwei/Desktop/LoadBalancer/build/release/test_backend": "b4b5c8716d54f02749b8973f641c86081459ebb13ced479f269ea61908901140"
+  },
+  "sysctl": "",
+  "system_stats_limitations": "Live ps/sysctl access may be denied; per-child wait4 rusage covers lifetime including warmup, with peak RSS, not host timeseries.",
+  "workload": "GET /request, no think time/pipelining, downstream keep-alive, fresh business upstream per request; response-hook enabled in every trial"
+}

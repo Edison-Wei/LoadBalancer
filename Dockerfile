@@ -10,7 +10,6 @@ COPY src ./src
 COPY apps ./apps
 COPY scripts/run_proxy.py ./scripts/
 COPY examples ./examples
-COPY docs/security.md docs/protocol-support.md docs/release-usage.md ./docs/
 COPY monitoring/README.md ./monitoring/
 ARG LB_GIT_REVISION=unknown
 RUN cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
