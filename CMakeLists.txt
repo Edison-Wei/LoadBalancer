@@ -32,7 +32,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Boost)
 
 add_library(lb_core src/foundation.cpp src/registry.cpp src/config.cpp src/proxy_http.cpp
-  src/upstream_proxy.cpp src/client_session.cpp src/listener.cpp)
+  src/upstream_proxy.cpp src/client_session.cpp src/listener.cpp src/health_checker.cpp src/metrics.cpp src/metrics_server.cpp)
 target_include_directories(lb_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(lb_core PUBLIC cxx_std_20)
 target_link_libraries(lb_core PUBLIC Boost::asio Boost::beast lb_snapshot)
@@ -64,6 +64,9 @@ if(BUILD_TESTING)
     tests/unit/registry_test.cpp
     tests/unit/test_backend_test.cpp
     tests/unit/proxy_http_test.cpp
+    tests/unit/health_state_test.cpp
+    tests/unit/resource_limiter_test.cpp
+    tests/unit/metrics_test.cpp
   )
   target_link_libraries(lb_tests PRIVATE lb_core lb_test_backend GTest::gtest_main)
   include(GoogleTest)
@@ -89,6 +92,21 @@ if(BUILD_TESTING)
       --backend "$<TARGET_FILE:test_backend>" --proxy "$<TARGET_FILE:load_balancer>"
       --logs "${CMAKE_CURRENT_BINARY_DIR}/Testing/proxy-process")
   set_tests_properties(proxy_process PROPERTIES TIMEOUT 60 LABELS integration)
+  add_test(NAME health_process
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/health_process.py"
+      --backend "$<TARGET_FILE:test_backend>" --proxy "$<TARGET_FILE:load_balancer>"
+      --logs "${CMAKE_CURRENT_BINARY_DIR}/Testing/health-process")
+  set_tests_properties(health_process PROPERTIES TIMEOUT 60 LABELS integration)
+  add_test(NAME lifecycle_process
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/lifecycle_process.py"
+      --backend "$<TARGET_FILE:test_backend>" --proxy "$<TARGET_FILE:load_balancer>"
+      --logs "${CMAKE_CURRENT_BINARY_DIR}/Testing/lifecycle-process")
+  set_tests_properties(lifecycle_process PROPERTIES TIMEOUT 180 LABELS integration)
+  add_test(NAME metrics_process
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/metrics_process.py"
+      --backend "$<TARGET_FILE:test_backend>" --proxy "$<TARGET_FILE:load_balancer>"
+      --logs "${CMAKE_CURRENT_BINARY_DIR}/Testing/metrics-process")
+  set_tests_properties(metrics_process PROPERTIES TIMEOUT 60 LABELS integration)
   add_test(NAME test_backend_help COMMAND test_backend --help)
   set_tests_properties(test_backend_help PROPERTIES TIMEOUT 10)
   add_test(NAME load_balancer_help COMMAND load_balancer --help)

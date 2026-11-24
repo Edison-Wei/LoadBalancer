@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -33,7 +34,20 @@ struct BackendServer {
     const std::uint16_t port;
     std::atomic<std::uint64_t> requests{0};
     std::atomic<std::uint64_t> failures{0};
+    // Fixed metric vocabularies: success/http_error/transport_error/timeout/cancelled;
+    // resolve/connect/timeout/reset/protocol/transport; enum state order below.
+    std::array<std::atomic<std::uint64_t>, 5> requestResults{};
+    std::array<std::atomic<std::uint64_t>, 6> upstreamErrors{};
+    std::array<std::atomic<std::uint64_t>, 4> stateChanges{};
+    std::atomic<std::uint64_t> openConnections{0};
     std::atomic<std::uint64_t> inFlight{0};
+    // Active readiness measurements are independent of real-traffic counters.
+    std::atomic<std::uint64_t> probes{0};
+    std::atomic<std::uint64_t> probeSuccesses{0};
+    std::atomic<std::uint64_t> probeFailures{0};
+    std::atomic<std::uint64_t> probeTimeouts{0};
+    std::atomic<std::uint64_t> lastProbeTimeMs{0};
+    std::atomic<std::uint64_t> lastTransitionTimeMs{0};
 
     [[nodiscard]] BackendState state() const noexcept {
         return m_state.load(std::memory_order_acquire);

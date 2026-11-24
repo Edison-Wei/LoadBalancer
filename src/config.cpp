@@ -3,7 +3,9 @@
 #include <boost/asio/ip/address.hpp>
 
 #include <charconv>
+#include <algorithm>
 #include <stdexcept>
+#include <thread>
 #include <unordered_set>
 
 namespace lb {
@@ -33,6 +35,22 @@ bool identifier(std::string_view value) {
 }
 } // namespace
 
+void validateHealthOptions(const HealthOptions& options) {
+    if (options.path.empty() || options.path.front() != '/' || options.path.size() > 1024 ||
+        options.path.find('#') != std::string::npos || options.intervalMs == 0 ||
+        options.intervalMs > 60000 || options.connectTimeoutMs == 0 || options.connectTimeoutMs > 60000 ||
+        options.responseTimeoutMs == 0 || options.responseTimeoutMs > 60000 ||
+        options.failureThreshold == 0 || options.failureThreshold > 1000 ||
+        options.successThreshold == 0 || options.successThreshold > 1000) {
+        throw std::invalid_argument("Invalid health path, deadline, interval, or threshold");
+    }
+    for (const unsigned char character : options.path) {
+        if (character <= 32 || character >= 127) {
+            throw std::invalid_argument("Health path must be an ASCII origin-form target without whitespace");
+        }
+    }
+}
+
 ProxyOptions parseProxyOptions(std::span<const std::string_view> args) {
     ProxyOptions options;
     std::unordered_set<std::string> ids;
@@ -46,17 +64,29 @@ ProxyOptions parseProxyOptions(std::span<const std::string_view> args) {
             options.smoke = true;
             continue;
         }
-        if (option != "--listen" && option != "--port" && option != "--backend" &&
+        if (option != "--metrics-listen" && option != "--metrics-port" &&
+            option != "--listen" && option != "--port" && option != "--backend" &&
             option != "--upstream-timeout-ms" && option != "--connect-timeout-ms" &&
             option != "--client-timeout-ms" && option != "--max-body-bytes" &&
-            option != "--max-header-bytes") {
+            option != "--max-header-bytes" && option != "--health-path" &&
+            option != "--health-interval-ms" && option != "--health-connect-timeout-ms" &&
+            option != "--health-response-timeout-ms" && option != "--health-failure-threshold" &&
+            option != "--health-success-threshold" && option != "--workers" &&
+            option != "--shutdown-grace-ms" && option != "--max-connections" &&
+            option != "--max-inflight" && option != "--max-upstream-connections" &&
+            option != "--upstream-write-timeout-ms" && option != "--upstream-read-timeout-ms" &&
+            option != "--client-read-timeout-ms" && option != "--client-write-timeout-ms") {
             throw std::invalid_argument("Unknown option: " + std::string(option));
         }
         if (++index == args.size()) {
             throw std::invalid_argument("Missing option value");
         }
         const auto value = args[index];
-        if (option == "--listen") {
+        if (option == "--metrics-listen") {
+            options.metricsListen = value;
+        } else if (option == "--metrics-port") {
+            options.metricsPort = static_cast<std::uint16_t>(number(value, 65535, true));
+        } else if (option == "--listen") {
             options.listen = value;
         } else if (option == "--port") {
             options.port = static_cast<std::uint16_t>(number(value, 65535, true));
@@ -87,10 +117,44 @@ ProxyOptions parseProxyOptions(std::span<const std::string_view> args) {
             options.connectTimeoutMs = number(value, 60000);
         } else if (option == "--client-timeout-ms") {
             options.clientTimeoutMs = number(value, 60000);
+            options.clientWriteTimeoutMs = options.clientTimeoutMs;
+        } else if (option == "--client-read-timeout-ms") {
+            options.clientTimeoutMs = number(value, 60000);
+        } else if (option == "--client-write-timeout-ms") {
+            options.clientWriteTimeoutMs = number(value, 60000);
+        } else if (option == "--upstream-write-timeout-ms") {
+            options.writeTimeoutMs = number(value, 60000);
+        } else if (option == "--upstream-read-timeout-ms") {
+            options.readTimeoutMs = number(value, 60000);
+        } else if (option == "--workers") {
+            options.workers = number(value, 64, true);
+            if (!options.workers) {
+                options.workers = std::clamp(std::thread::hardware_concurrency(), 1U, 64U);
+            }
+        } else if (option == "--shutdown-grace-ms") {
+            options.shutdownGraceMs = number(value, 60000, true);
+        } else if (option == "--max-connections") {
+            options.maxConnections = number(value, 65536);
+        } else if (option == "--max-inflight") {
+            options.maxInFlight = number(value, 65536);
+        } else if (option == "--max-upstream-connections") {
+            options.maxUpstreamConnections = number(value, 65536);
         } else if (option == "--max-body-bytes") {
             options.maxBodyBytes = number(value, 16 * 1024 * 1024, true);
-        } else {
+        } else if (option == "--max-header-bytes") {
             options.maxHeaderBytes = number(value, 65536);
+        } else if (option == "--health-path") {
+            options.health.path = value;
+        } else if (option == "--health-interval-ms") {
+            options.health.intervalMs = number(value, 60000);
+        } else if (option == "--health-connect-timeout-ms") {
+            options.health.connectTimeoutMs = number(value, 60000);
+        } else if (option == "--health-response-timeout-ms") {
+            options.health.responseTimeoutMs = number(value, 60000);
+        } else if (option == "--health-failure-threshold") {
+            options.health.failureThreshold = number(value, 1000);
+        } else {
+            options.health.successThreshold = number(value, 1000);
         }
     }
     boost::system::error_code error;
@@ -98,6 +162,9 @@ ProxyOptions parseProxyOptions(std::span<const std::string_view> args) {
     if (error) {
         throw std::invalid_argument("--listen must be a numeric IP address");
     }
+    boost::asio::ip::make_address(options.metricsListen, error);
+    if (error) throw std::invalid_argument("--metrics-listen must be a numeric IP address");
+    validateHealthOptions(options.health);
     return options;
 }
 

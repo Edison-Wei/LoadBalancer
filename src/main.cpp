@@ -16,11 +16,19 @@ int main(int argc, char* argv[]) {
         const auto options = lb::parseProxyOptions(args);
         if (options.help) {
             std::cout << "Usage: load_balancer [--listen 127.0.0.1] [--port 8080]\n"
+                         "  [--metrics-listen 127.0.0.1] [--metrics-port 9091]\n"
                          "  [--backend ID,HOST,PORT]... [--upstream-timeout-ms 3000]\n"
                          "  [--connect-timeout-ms 1000] [--client-timeout-ms 10000]\n"
+                         "  [--upstream-write-timeout-ms 3000] [--upstream-read-timeout-ms 3000]\n"
+                         "  [--client-read-timeout-ms 10000] [--client-write-timeout-ms 10000]\n"
+                         "  [--workers 4] [--shutdown-grace-ms 5000]\n"
+                         "  [--max-connections 4096] [--max-inflight 256] [--max-upstream-connections 256]\n"
                          "  [--max-body-bytes 1048576] [--max-header-bytes 16384]\n"
+                         "  [--health-path /health] [--health-interval-ms 2000]\n"
+                         "  [--health-connect-timeout-ms 1000] [--health-response-timeout-ms 2000]\n"
+                         "  [--health-failure-threshold 3] [--health-success-threshold 2]\n"
                          "  [--smoke] [--help]\n"
-                         "Port zero chooses a free port. Startup probes GET /health once.\n";
+                         "Port zero chooses a free port. Readiness probes recur automatically.\n";
             return 0;
         }
         if (!options.smoke) {

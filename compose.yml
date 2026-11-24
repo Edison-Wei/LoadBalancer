@@ -1,0 +1,101 @@
+# Private metrics and origins: only application/monitoring UIs publish to loopback.
+x-runtime: &runtime
+  image: load-balancer:local
+  build: .
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  networks: [monitoring]
+  mem_limit: 256m
+  cpus: 2
+  pids_limit: 128
+
+services:
+  backend-a:
+    <<: *runtime
+    entrypoint: [/usr/local/bin/test_backend]
+    command: [--id, A, --listen, 0.0.0.0, --port, '9000']
+    healthcheck: &backend-health
+      test: [CMD, curl, --fail, --silent, --max-time, '2', 'http://127.0.0.1:9000/health']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  backend-b:
+    <<: *runtime
+    entrypoint: [/usr/local/bin/test_backend]
+    command: [--id, B, --listen, 0.0.0.0, --port, '9000']
+    healthcheck: *backend-health
+  backend-c:
+    <<: *runtime
+    entrypoint: [/usr/local/bin/test_backend]
+    command: [--id, C, --listen, 0.0.0.0, --port, '9000']
+    healthcheck: *backend-health
+  load-balancer:
+    <<: *runtime
+    command: [--listen, 0.0.0.0, --port, '8080', --metrics-listen, 0.0.0.0,
+              --metrics-port, '9091', --backend, 'A,backend-a,9000',
+              --backend, 'B,backend-b,9000', --backend, 'C,backend-c,9000',
+              --health-interval-ms, '500']
+    ports: ['127.0.0.1:8080:8080']
+    networks: [monitoring, host-access]
+    depends_on:
+      backend-a: {condition: service_healthy}
+      backend-b: {condition: service_healthy}
+      backend-c: {condition: service_healthy}
+    stop_grace_period: 10s
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, '2', 'http://127.0.0.1:9091/metrics']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.path=/prometheus,
+              --storage.tsdb.retention.time=24h]
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports: ['127.0.0.1:9090:9090']
+    networks: [monitoring, host-access]
+    depends_on:
+      load-balancer: {condition: service_healthy}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+  grafana:
+    image: grafana/grafana:12.1.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports: ['127.0.0.1:3000:3000']
+    networks: [monitoring, host-access]
+    depends_on: [prometheus]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+
+networks:
+  # Internal-only networks cannot publish host ports on affected Docker versions.
+  # Only services with explicit loopback publications join the normal bridge.
+  host-access:
+    driver: bridge
+  monitoring:
+    internal: true
+volumes:
+  prometheus-data:
+  grafana-data:

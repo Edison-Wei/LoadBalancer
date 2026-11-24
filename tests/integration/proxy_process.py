@@ -129,7 +129,7 @@ def main():
         return process, process.ready()
 
     def proxy_at(name, backends, timeout=1000):
-        flags = ["--port", "0", "--upstream-timeout-ms", str(timeout), "--connect-timeout-ms", "300"]
+        flags = ["--metrics-port", "0", "--port", "0", "--upstream-timeout-ms", str(timeout), "--connect-timeout-ms", "300"]
         for identifier, port in backends:
             flags += ["--backend", f"{identifier},127.0.0.1,{port}"]
         return start(proxy, flags, name)

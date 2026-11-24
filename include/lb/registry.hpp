@@ -19,6 +19,7 @@ public:
 
     [[nodiscard]] ServerListSnapshot snapshot() const;
     [[nodiscard]] BackendPtr findBackend(std::string_view id) const;
+    [[nodiscard]] ServerList configuredBackends() const;
 
     /// Reuses state/counters for unchanged (id, host, port) identities. New or
     /// changed endpoints start UNKNOWN. Removed objects outlive outstanding readers.
@@ -29,7 +30,12 @@ public:
     /// A held old snapshot may still select this backend after this call returns.
     bool setState(std::string_view id, BackendState state);
 
+    /// Publishes a health result only for the same configured object and state
+    /// observed before its probe. Never overrides DRAINING or a removed endpoint.
+    bool setStateIfCurrent(const BackendPtr& backend, BackendState expected, BackendState state);
+
 private:
+    void publishState(const BackendPtr& backend, BackendState state);
     mutable std::mutex m_writerMutex;
     ServerList m_backends;
     AtomicSharedPtr<const ServerList> m_eligible;

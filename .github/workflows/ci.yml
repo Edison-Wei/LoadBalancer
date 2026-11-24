@@ -61,3 +61,37 @@ jobs:
             build/${{ matrix.preset }}/Testing/Temporary/
             build/${{ matrix.preset }}/Testing/backend-process/
             build/${{ matrix.preset }}/Testing/proxy-process/
+            build/${{ matrix.preset }}/Testing/health-process/
+            build/${{ matrix.preset }}/Testing/lifecycle-process/
+            build/${{ matrix.preset }}/Testing/metrics-process/
+
+  monitoring:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate host publication and origin isolation
+        run: python3 tests/integration/monitoring_config.py
+      - name: Start isolated monitoring stack
+        run: docker compose up --build --wait --wait-timeout 120
+      - name: Validate real Prometheus configuration and exposition
+        shell: bash
+        run: |
+          set -o pipefail
+          docker compose exec -T prometheus promtool check config /etc/prometheus/prometheus.yml
+          docker compose exec -T load-balancer curl --fail --silent http://127.0.0.1:9091/metrics | docker compose exec -T prometheus promtool check metrics
+      - name: Verify scrape and provisioned dashboard
+        run: python3 tests/integration/monitoring_stack.py
+      - name: Save monitoring evidence
+        if: always()
+        run: |
+          mkdir -p build/monitoring-evidence
+          docker compose logs --no-color > build/monitoring-evidence/compose.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: monitoring
+          path: build/monitoring-evidence/
+      - name: Stop owned stack
+        if: always()
+        run: docker compose down

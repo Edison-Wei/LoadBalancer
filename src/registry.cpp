@@ -57,6 +57,11 @@ ServerListSnapshot BackendRegistry::snapshot() const {
     return m_eligible.load();
 }
 
+ServerList BackendRegistry::configuredBackends() const {
+    const std::lock_guard lock(m_writerMutex);
+    return m_backends;
+}
+
 BackendPtr BackendRegistry::findBackend(std::string_view id) const {
     const std::lock_guard lock(m_writerMutex);
     const auto found = std::find_if(m_backends.begin(), m_backends.end(),
@@ -94,14 +99,30 @@ bool BackendRegistry::setState(std::string_view id, BackendState state) {
     if (found == m_backends.end()) {
         return false;
     }
-    if ((*found)->state() == state) {
-        return true;
+    publishState(*found, state);
+    return true;
+}
+
+bool BackendRegistry::setStateIfCurrent(const BackendPtr& backend, BackendState expected, BackendState state) {
+    validateState(state);
+    const std::lock_guard lock(m_writerMutex);
+    if (!backend || backend->state() != expected || expected == BackendState::DRAINING ||
+        std::find(m_backends.begin(), m_backends.end(), backend) == m_backends.end()) {
+        return false;
+    }
+    publishState(backend, state);
+    return true;
+}
+
+void BackendRegistry::publishState(const BackendPtr& backend, BackendState state) {
+    if (backend->state() == state) {
+        return;
     }
     // Allocation failure must not change health state without publishing it.
-    auto eligible = makeEligibleSnapshot(m_backends, *found, state);
-    (*found)->m_state.store(state, std::memory_order_release);
+    auto eligible = makeEligibleSnapshot(m_backends, backend, state);
+    backend->m_state.store(state, std::memory_order_release);
+    backend->stateChanges[static_cast<std::size_t>(state)].fetch_add(1, std::memory_order_relaxed);
     m_eligible.store(std::move(eligible));
-    return true;
 }
 
 } // namespace lb
