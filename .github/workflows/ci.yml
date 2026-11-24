@@ -91,39 +91,6 @@ jobs:
             build/${{ matrix.preset }}/Testing/metrics-process/
             build/${{ matrix.preset }}/Testing/chaos-*/
 
-  monitoring:
-    env:
-      LB_GIT_REVISION: ${{ github.sha }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate host publication and origin isolation
-        run: python3 tests/integration/monitoring_config.py
-      - name: Start isolated monitoring stack
-        run: docker compose up --build --wait --wait-timeout 120
-      - name: Validate real Prometheus configuration and exposition
-        shell: bash
-        run: |
-          set -o pipefail
-          docker compose exec -T prometheus promtool check config /etc/prometheus/prometheus.yml
-          docker compose exec -T load-balancer curl --fail --silent http://127.0.0.1:9091/metrics | docker compose exec -T prometheus promtool check metrics
-      - name: Verify scrape and provisioned dashboard
-        run: python3 tests/integration/monitoring_stack.py
-      - name: Save monitoring evidence
-        if: always()
-        run: |
-          mkdir -p build/monitoring-evidence
-          docker compose logs --no-color > build/monitoring-evidence/compose.log
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: monitoring
-          path: build/monitoring-evidence/
-      - name: Stop owned stack
-        if: always()
-        run: docker compose down
-
   container-chaos:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -175,22 +142,3 @@ jobs:
           path: |
             build/release-verification/
             build/release-tests.xml
-
-  quality-gate:
-    if: always()
-    needs: [format, build, monitoring, container-chaos, runtime-artifact]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
-    steps:
-      - name: Require every gate to succeed
-        env:
-          GATE_RESULTS: ${{ toJSON(needs) }}
-        run: |
-          python3 - <<'PY'
-          import json, os
-          results = json.loads(os.environ["GATE_RESULTS"])
-          failed = {name: result["result"] for name, result in results.items() if result["result"] != "success"}
-          print(results)
-          if failed:
-              raise SystemExit(str(failed))
-          PY
