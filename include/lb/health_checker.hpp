@@ -17,12 +17,13 @@ namespace lb {
 /// Pure hysteresis state machine. UNKNOWN admits its first successful probe;
 /// after exclusion, recovery requires the full success threshold. Counts saturate.
 class HealthProgress {
-public:
+  public:
     HealthProgress(unsigned failures, unsigned successes);
     BackendState observe(BackendState current, bool success);
     [[nodiscard]] unsigned successes() const noexcept { return m_successes; }
     [[nodiscard]] unsigned failures() const noexcept { return m_failures; }
-private:
+
+  private:
     unsigned m_failureThreshold;
     unsigned m_successThreshold;
     unsigned m_successes = 0;
@@ -39,7 +40,7 @@ struct ProbeOutcome {
 /// stop() cancels intervals/active probes and gates subsequent publication.
 /// Probe injection permits deterministic lifecycle tests without sockets.
 class HealthChecker : public std::enable_shared_from_this<HealthChecker> {
-public:
+  public:
     using Probe = std::function<boost::asio::awaitable<ProbeOutcome>(
         BackendPtr, std::shared_ptr<UpstreamCancellation>)>;
     using OnError = std::function<void(std::exception_ptr)>;
@@ -50,12 +51,12 @@ public:
     void start();
     void stop();
 
-private:
+  private:
     struct Entry;
     boost::asio::awaitable<void> probeOnce(const std::shared_ptr<Entry>& entry);
     boost::asio::awaitable<void> periodic(std::shared_ptr<Entry> entry);
-    boost::asio::awaitable<ProbeOutcome> networkProbe(BackendPtr backend,
-                                                    std::shared_ptr<UpstreamCancellation> cancellation);
+    boost::asio::awaitable<ProbeOutcome>
+    networkProbe(BackendPtr backend, std::shared_ptr<UpstreamCancellation> cancellation);
     boost::asio::any_io_executor m_executor;
     std::shared_ptr<BackendRegistry> m_registry;
     HealthOptions m_options;

@@ -1,6 +1,6 @@
 #include "lb/health_checker.hpp"
-#include "lb/proxy_http.hpp"
 #include "lb/log.hpp"
+#include "lb/proxy_http.hpp"
 
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/redirect_error.hpp>
@@ -19,24 +19,34 @@ namespace http = boost::beast::http;
 
 std::uint64_t timestamp() {
     return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count());
+                                          std::chrono::system_clock::now().time_since_epoch())
+                                          .count());
 }
 const char* stateName(BackendState state) {
     switch (state) {
-    case BackendState::UNKNOWN: return "UNKNOWN";
-    case BackendState::HEALTHY: return "HEALTHY";
-    case BackendState::UNHEALTHY: return "UNHEALTHY";
-    case BackendState::DRAINING: return "DRAINING";
+    case BackendState::UNKNOWN:
+        return "UNKNOWN";
+    case BackendState::HEALTHY:
+        return "HEALTHY";
+    case BackendState::UNHEALTHY:
+        return "UNHEALTHY";
+    case BackendState::DRAINING:
+        return "DRAINING";
     }
     return "INVALID";
 }
 const char* reasonName(ProbeReason reason) {
     switch (reason) {
-    case ProbeReason::SUCCESS: return "success";
-    case ProbeReason::HTTP_STATUS: return "http_status";
-    case ProbeReason::TRANSPORT: return "transport";
-    case ProbeReason::TIMEOUT: return "timeout";
-    case ProbeReason::CANCELLED: return "cancelled";
+    case ProbeReason::SUCCESS:
+        return "success";
+    case ProbeReason::HTTP_STATUS:
+        return "http_status";
+    case ProbeReason::TRANSPORT:
+        return "transport";
+    case ProbeReason::TIMEOUT:
+        return "timeout";
+    case ProbeReason::CANCELLED:
+        return "cancelled";
     }
     return "invalid";
 }
@@ -59,7 +69,8 @@ BackendState HealthProgress::observe(BackendState current, bool success) {
             ++m_successes;
         }
         return current == BackendState::UNKNOWN || m_successes >= m_successThreshold
-                   ? BackendState::HEALTHY : current;
+                   ? BackendState::HEALTHY
+                   : current;
     }
     m_successes = 0;
     if (m_failures < m_failureThreshold) {
@@ -70,7 +81,8 @@ BackendState HealthProgress::observe(BackendState current, bool success) {
 
 struct HealthChecker::Entry {
     Entry(asio::any_io_executor executor, BackendPtr value, const HealthOptions& options)
-        : backend(std::move(value)), progress(options.failureThreshold, options.successThreshold), timer(executor) {}
+        : backend(std::move(value)), progress(options.failureThreshold, options.successThreshold),
+          timer(executor) {}
     BackendPtr backend;
     HealthProgress progress;
     asio::steady_timer timer;
@@ -78,10 +90,11 @@ struct HealthChecker::Entry {
     BackendState lastState = BackendState::UNKNOWN;
 };
 
-HealthChecker::HealthChecker(asio::any_io_executor executor, std::shared_ptr<BackendRegistry> registry,
-                             HealthOptions options, Probe probe, OnError onError)
-    : m_executor(std::move(executor)), m_registry(std::move(registry)), m_options(std::move(options)),
-      m_probe(std::move(probe)), m_onError(std::move(onError)) {
+HealthChecker::HealthChecker(asio::any_io_executor executor,
+                             std::shared_ptr<BackendRegistry> registry, HealthOptions options,
+                             Probe probe, OnError onError)
+    : m_executor(std::move(executor)), m_registry(std::move(registry)),
+      m_options(std::move(options)), m_probe(std::move(probe)), m_onError(std::move(onError)) {
     validateHealthOptions(m_options);
     if (!m_registry) {
         throw std::invalid_argument("Health checker requires a registry");
@@ -91,8 +104,9 @@ HealthChecker::HealthChecker(asio::any_io_executor executor, std::shared_ptr<Bac
     }
 }
 
-asio::awaitable<ProbeOutcome> HealthChecker::networkProbe(BackendPtr backend,
-                                                       std::shared_ptr<UpstreamCancellation> cancellation) {
+asio::awaitable<ProbeOutcome>
+HealthChecker::networkProbe(BackendPtr backend,
+                            std::shared_ptr<UpstreamCancellation> cancellation) {
     ProxyOptions options;
     options.connectTimeoutMs = m_options.connectTimeoutMs;
     options.upstreamTimeoutMs = m_options.connectTimeoutMs + m_options.responseTimeoutMs;
@@ -101,7 +115,7 @@ asio::awaitable<ProbeOutcome> HealthChecker::networkProbe(BackendPtr backend,
     ProxyRequest request{http::verb::get, m_options.path, 11};
     prepareUpstreamRequest(request, *backend, "127.0.0.1");
     auto result = co_await forwardToBackend(std::move(request), backend, options,
-                                          m_options.responseTimeoutMs, std::move(cancellation));
+                                            m_options.responseTimeoutMs, std::move(cancellation));
     if (result.error == UpstreamError::CANCELLED) {
         co_return ProbeOutcome{ProbeReason::CANCELLED, 0};
     }
@@ -112,8 +126,8 @@ asio::awaitable<ProbeOutcome> HealthChecker::networkProbe(BackendPtr backend,
         co_return ProbeOutcome{ProbeReason::TRANSPORT, 0};
     }
     co_return ProbeOutcome{result.response.result() == http::status::ok ? ProbeReason::SUCCESS
-                                                                      : ProbeReason::HTTP_STATUS,
-                          result.response.result_int()};
+                                                                        : ProbeReason::HTTP_STATUS,
+                           result.response.result_int()};
 }
 
 asio::awaitable<void> HealthChecker::probeOnce(const std::shared_ptr<Entry>& entry) {
@@ -154,17 +168,19 @@ asio::awaitable<void> HealthChecker::probeOnce(const std::shared_ptr<Entry>& ent
         }
     }
     const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - started).count();
-    LogLine{} << "{\"event\":\"health_probe\",\"timestamp_ms\":" << now
-              << ",\"backend\":\"" << entry->backend->id << "\",\"reason\":\"" << reasonName(result.reason)
+                             std::chrono::steady_clock::now() - started)
+                             .count();
+    LogLine{} << "{\"event\":\"health_probe\",\"timestamp_ms\":" << now << ",\"backend\":\""
+              << entry->backend->id << "\",\"reason\":\"" << reasonName(result.reason)
               << "\",\"status\":" << result.status << ",\"duration_ms\":" << elapsed
-              << ",\"successes\":" << progress.successes() << ",\"failures\":" << progress.failures()
-              << ",\"state\":\"" << stateName(after) << "\"}" << std::endl;
+              << ",\"successes\":" << progress.successes()
+              << ",\"failures\":" << progress.failures() << ",\"state\":\"" << stateName(after)
+              << "\"}" << std::endl;
     if (before != after) {
         entry->backend->lastTransitionTimeMs.store(now, std::memory_order_relaxed);
         LogLine{} << "{\"event\":\"health_transition\",\"timestamp_ms\":" << now
-                  << ",\"backend\":\"" << entry->backend->id << "\",\"from\":\"" << stateName(before)
-                  << "\",\"to\":\"" << stateName(after) << "\"}" << std::endl;
+                  << ",\"backend\":\"" << entry->backend->id << "\",\"from\":\""
+                  << stateName(before) << "\",\"to\":\"" << stateName(after) << "\"}" << std::endl;
     }
 }
 
@@ -230,6 +246,7 @@ void HealthChecker::stop() {
             entry->active->cancel();
         }
     }
-    LogLine{} << "{\"event\":\"health_checker_stopped\",\"timestamp_ms\":" << timestamp() << "}" << std::endl;
+    LogLine{} << "{\"event\":\"health_checker_stopped\",\"timestamp_ms\":" << timestamp() << "}"
+              << std::endl;
 }
 } // namespace lb

@@ -24,7 +24,8 @@ namespace asio = boost::asio;
 using State = lb::BackendState;
 
 std::shared_ptr<lb::BackendRegistry> registry() {
-    return std::make_shared<lb::BackendRegistry>(std::vector<lb::BackendConfig>{{"A", "localhost", 9001}});
+    return std::make_shared<lb::BackendRegistry>(
+        std::vector<lb::BackendConfig>{{"A", "localhost", 9001}});
 }
 
 void bootstrap(asio::io_context& context, const std::shared_ptr<lb::HealthChecker>& checker) {
@@ -89,9 +90,18 @@ TEST(HealthState, DrainingIsProtectedAndCountersSaturate) {
 }
 
 TEST(HealthConfig, ParsesPolicyAndRejectsInvalidThresholdsPathsAndDeadlines) {
-    const std::vector<std::string_view> args = {
-        "--health-path", "/ready", "--health-interval-ms", "50", "--health-connect-timeout-ms", "20",
-        "--health-response-timeout-ms", "40", "--health-failure-threshold", "4", "--health-success-threshold", "3"};
+    const std::vector<std::string_view> args = {"--health-path",
+                                                "/ready",
+                                                "--health-interval-ms",
+                                                "50",
+                                                "--health-connect-timeout-ms",
+                                                "20",
+                                                "--health-response-timeout-ms",
+                                                "40",
+                                                "--health-failure-threshold",
+                                                "4",
+                                                "--health-success-threshold",
+                                                "3"};
     const auto options = lb::parseProxyOptions(args).health;
     EXPECT_EQ(options.path, "/ready");
     EXPECT_EQ(options.intervalMs, 50U);
@@ -99,11 +109,15 @@ TEST(HealthConfig, ParsesPolicyAndRejectsInvalidThresholdsPathsAndDeadlines) {
     EXPECT_EQ(options.responseTimeoutMs, 40U);
     EXPECT_EQ(options.failureThreshold, 4U);
     EXPECT_EQ(options.successThreshold, 3U);
-    for (const auto& invalid : std::vector<std::vector<std::string_view>>{
-             {"--health-path", "http://example/"}, {"--health-path", "/bad path"},
-             {"--health-path", "/health#fragment"}, {"--health-interval-ms", "0"},
-             {"--health-response-timeout-ms", "0"}, {"--health-connect-timeout-ms", "60001"},
-             {"--health-success-threshold", "0"}, {"--health-failure-threshold", "1001"}}) {
+    for (const auto& invalid :
+         std::vector<std::vector<std::string_view>>{{"--health-path", "http://example/"},
+                                                    {"--health-path", "/bad path"},
+                                                    {"--health-path", "/health#fragment"},
+                                                    {"--health-interval-ms", "0"},
+                                                    {"--health-response-timeout-ms", "0"},
+                                                    {"--health-connect-timeout-ms", "60001"},
+                                                    {"--health-success-threshold", "0"},
+                                                    {"--health-failure-threshold", "1001"}}) {
         EXPECT_THROW(lb::parseProxyOptions(invalid), std::invalid_argument);
     }
 }
@@ -130,7 +144,8 @@ TEST(HealthChecker, BootstrapMakesAllHealthyWithoutConsumingSchedulerOrTrafficCo
     backends->findBackend("A")->requests.store(7);
     lb::HealthChecker::Probe probe = [](lb::BackendPtr, std::shared_ptr<lb::UpstreamCancellation>)
         -> asio::awaitable<lb::ProbeOutcome> { co_return lb::ProbeOutcome{}; };
-    const auto checker = std::make_shared<lb::HealthChecker>(context.get_executor(), backends, lb::HealthOptions{}, probe);
+    const auto checker = std::make_shared<lb::HealthChecker>(context.get_executor(), backends,
+                                                             lb::HealthOptions{}, probe);
     EXPECT_THROW(checker->start(), std::logic_error);
     bootstrap(context, checker);
     ASSERT_EQ(backends->snapshot()->size(), 3U);
@@ -153,9 +168,13 @@ TEST(HealthChecker, TimeoutProbeCountersStaySeparateFromBusinessFailures) {
     const auto backends = registry();
     lb::HealthOptions options;
     options.failureThreshold = 1;
-    const auto probe = [](lb::BackendPtr, std::shared_ptr<lb::UpstreamCancellation>)
-        -> asio::awaitable<lb::ProbeOutcome> { co_return lb::ProbeOutcome{lb::ProbeReason::TIMEOUT, 0}; };
-    const auto checker = std::make_shared<lb::HealthChecker>(context.get_executor(), backends, options, probe);
+    const auto probe =
+        [](lb::BackendPtr,
+           std::shared_ptr<lb::UpstreamCancellation>) -> asio::awaitable<lb::ProbeOutcome> {
+        co_return lb::ProbeOutcome{lb::ProbeReason::TIMEOUT, 0};
+    };
+    const auto checker =
+        std::make_shared<lb::HealthChecker>(context.get_executor(), backends, options, probe);
     bootstrap(context, checker);
     const auto backend = backends->findBackend("A");
     EXPECT_EQ(backend->state(), State::UNHEALTHY);
@@ -173,8 +192,9 @@ TEST(HealthChecker, RecurringProbesNeverOverlapAndStoppedResultCannotPublish) {
     int active = 0;
     int maximum = 0;
     int calls = 0;
-    const auto probe = [&](lb::BackendPtr, std::shared_ptr<lb::UpstreamCancellation>)
-        -> asio::awaitable<lb::ProbeOutcome> {
+    const auto probe =
+        [&](lb::BackendPtr,
+            std::shared_ptr<lb::UpstreamCancellation>) -> asio::awaitable<lb::ProbeOutcome> {
         maximum = std::max(maximum, ++active);
         ++calls;
         const auto executor = co_await asio::this_coro::executor;
@@ -188,7 +208,8 @@ TEST(HealthChecker, RecurringProbesNeverOverlapAndStoppedResultCannotPublish) {
     };
     lb::HealthOptions options;
     options.intervalMs = 1;
-    const auto checker = std::make_shared<lb::HealthChecker>(context.get_executor(), backends, options, probe);
+    const auto checker =
+        std::make_shared<lb::HealthChecker>(context.get_executor(), backends, options, probe);
     weak = checker;
     bootstrap(context, checker);
     context.restart();
@@ -218,7 +239,8 @@ TEST(HealthChecker, StopCancelsPendingProbeAndSuppressesEvenLateSuccess) {
         cancellation->setAction({});
         co_return lb::ProbeOutcome{}; // late result must not restore eligibility
     };
-    const auto checker = std::make_shared<lb::HealthChecker>(context.get_executor(), backends, lb::HealthOptions{}, probe);
+    const auto checker = std::make_shared<lb::HealthChecker>(context.get_executor(), backends,
+                                                             lb::HealthOptions{}, probe);
     weak = checker;
     bootstrap(context, checker);
     EXPECT_TRUE(cancelled);
@@ -231,12 +253,14 @@ TEST(HealthChecker, ReloadDuringProbeCannotPublishAnOldEndpointResult) {
     asio::io_context context;
     const auto backends = registry();
     const auto old = backends->findBackend("A");
-    const auto probe = [&](lb::BackendPtr, std::shared_ptr<lb::UpstreamCancellation>)
-        -> asio::awaitable<lb::ProbeOutcome> {
+    const auto probe =
+        [&](lb::BackendPtr,
+            std::shared_ptr<lb::UpstreamCancellation>) -> asio::awaitable<lb::ProbeOutcome> {
         backends->replaceBackends({{"A", "new-host", 9002}});
         co_return lb::ProbeOutcome{};
     };
-    const auto checker = std::make_shared<lb::HealthChecker>(context.get_executor(), backends, lb::HealthOptions{}, probe);
+    const auto checker = std::make_shared<lb::HealthChecker>(context.get_executor(), backends,
+                                                             lb::HealthOptions{}, probe);
     bootstrap(context, checker);
     EXPECT_TRUE(backends->snapshot()->empty());
     EXPECT_EQ(backends->findBackend("A")->state(), State::UNKNOWN);
@@ -250,8 +274,12 @@ TEST(UpstreamCancellation, CancelBeforeStartReturnsWithoutOpeningAnOperation) {
     cancellation->cancel();
     lb::ProxyOptions options;
     lb::ProxyRequest request{boost::beast::http::verb::get, "/health", 11};
-    auto done = asio::co_spawn(context, lb::forwardToBackend(std::move(request),
-        std::make_shared<lb::BackendServer>("A", "localhost", 9001), options, 10, cancellation), asio::use_future);
+    auto done = asio::co_spawn(
+        context,
+        lb::forwardToBackend(std::move(request),
+                             std::make_shared<lb::BackendServer>("A", "localhost", 9001), options,
+                             10, cancellation),
+        asio::use_future);
     context.run();
     EXPECT_EQ(done.get().error, lb::UpstreamError::CANCELLED);
 }

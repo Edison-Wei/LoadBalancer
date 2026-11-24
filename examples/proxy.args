@@ -1,0 +1,13 @@
+# Data arguments consumed by bin/run-proxy.py; shell commands are not executed.
+--listen 127.0.0.1
+--port 8080
+--metrics-listen 127.0.0.1
+--metrics-port 9091
+--workers 4
+--shutdown-grace-ms 5000
+--max-connections 4096
+--max-inflight 256
+--max-upstream-connections 256
+--backend A,127.0.0.1,9001
+--backend B,127.0.0.1,9002
+--backend C,127.0.0.1,9003

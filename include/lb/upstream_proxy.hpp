@@ -16,7 +16,7 @@ enum class UpstreamStage { RESOLVE, CONNECT, WRITE, READ };
 /// Single-executor cancellation for health-check shutdown. Each probe owns a new
 /// instance; cancellation remains set even if the operation has not started yet.
 class UpstreamCancellation {
-public:
+  public:
     void cancel() {
         m_cancelled = true;
         if (m_action) {
@@ -30,7 +30,8 @@ public:
             m_action();
         }
     }
-private:
+
+  private:
     bool m_cancelled = false;
     std::function<void()> m_action;
 };
@@ -43,8 +44,8 @@ struct UpstreamResult {
     UpstreamReason reason = UpstreamReason::TRANSPORT;
 };
 
-boost::asio::awaitable<UpstreamResult> forwardToBackend(ProxyRequest request, BackendPtr backend,
-                                                     const ProxyOptions& options,
-                                                     unsigned responseTimeoutMs = 0,
-                                                     std::shared_ptr<UpstreamCancellation> cancellation = {});
+boost::asio::awaitable<UpstreamResult>
+forwardToBackend(ProxyRequest request, BackendPtr backend, const ProxyOptions& options,
+                 unsigned responseTimeoutMs = 0,
+                 std::shared_ptr<UpstreamCancellation> cancellation = {});
 } // namespace lb

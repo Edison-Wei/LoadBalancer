@@ -11,7 +11,8 @@ namespace http = boost::beast::http;
 
 bool token(char value) {
     return (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z') ||
-           (value >= '0' && value <= '9') || std::string_view("!#$%&'*+-.^_`|~").find(value) != std::string_view::npos;
+           (value >= '0' && value <= '9') ||
+           std::string_view("!#$%&'*+-.^_`|~").find(value) != std::string_view::npos;
 }
 
 void appendVia(http::fields& fields) {
@@ -33,12 +34,15 @@ std::optional<http::status> validateClientHeader(const ProxyRequest& request) {
         return http::status::not_implemented;
     }
     if (request.count(http::field::host) != 1 || request[http::field::host].empty() ||
-        request.count(http::field::content_length) > 1 || request.count(http::field::transfer_encoding) > 1 ||
-        (request.count(http::field::content_length) && request.count(http::field::transfer_encoding))) {
+        request.count(http::field::content_length) > 1 ||
+        request.count(http::field::transfer_encoding) > 1 ||
+        (request.count(http::field::content_length) &&
+         request.count(http::field::transfer_encoding))) {
         return http::status::bad_request;
     }
     const auto target = request.target();
-    if (target.empty() || target.front() != '/' || target.find('#') != boost::beast::string_view::npos) {
+    if (target.empty() || target.front() != '/' ||
+        target.find('#') != boost::beast::string_view::npos) {
         return http::status::bad_request;
     }
     if (request.count(http::field::expect)) {
@@ -97,8 +101,9 @@ bool stripHopByHop(http::fields& fields) {
     for (const auto& name : nominated) {
         fields.erase(name);
     }
-    for (const auto* name : {"Connection", "Keep-Alive", "Proxy-Connection", "Proxy-Authenticate",
-                             "Proxy-Authorization", "TE", "Trailer", "Transfer-Encoding", "Upgrade"}) {
+    for (const auto* name :
+         {"Connection", "Keep-Alive", "Proxy-Connection", "Proxy-Authenticate",
+          "Proxy-Authorization", "TE", "Trailer", "Transfer-Encoding", "Upgrade"}) {
         fields.erase(name);
     }
     return true;
@@ -122,7 +127,8 @@ bool prepareUpstreamRequest(ProxyRequest& request, const BackendServer& backend,
     for (const auto* name : {"Forwarded", "X-Real-IP"}) {
         request.erase(name);
     }
-    const auto host = backend.host.find(':') == std::string::npos ? backend.host : "[" + backend.host + "]";
+    const auto host =
+        backend.host.find(':') == std::string::npos ? backend.host : "[" + backend.host + "]";
     request.set(http::field::host, host + ":" + std::to_string(backend.port));
     request.set("X-Forwarded-For", std::string(clientAddress));
     request.set("X-Forwarded-Proto", "http");
@@ -159,7 +165,8 @@ ProxyResponse proxyError(http::status status, bool keepAlive, bool head) {
     response.set(http::field::via, "1.1 load-balancer");
     if (!head) {
         const auto reason = response.reason();
-        response.body() = std::to_string(response.result_int()) + " " + std::string(reason.data(), reason.size()) + "\n";
+        response.body() = std::to_string(response.result_int()) + " " +
+                          std::string(reason.data(), reason.size()) + "\n";
     }
     if (status == http::status::method_not_allowed) {
         response.set(http::field::allow, "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS");

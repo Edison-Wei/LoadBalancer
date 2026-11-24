@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 3 HTTP-01..10 using only owned processes and isolated loopback ports."""
+"""HTTP forwarding checks HTTP-01..10 using only owned processes and isolated loopback ports."""
 
 import argparse
 import http.client

@@ -1,7 +1,10 @@
 # Private metrics and origins: only application/monitoring UIs publish to loopback.
 x-runtime: &runtime
   image: load-balancer:local
-  build: .
+  build:
+    context: .
+    args:
+      LB_GIT_REVISION: ${LB_GIT_REVISION:-unknown}
   read_only: true
   tmpfs: [/tmp]
   cap_drop: [ALL]

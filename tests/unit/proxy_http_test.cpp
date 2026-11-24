@@ -18,9 +18,16 @@ lb::ProxyRequest get() {
 }
 
 TEST(ProxyConfig, ParsesEndpointsLimitsAndRejectsInvalidInput) {
-    const std::vector<std::string_view> args = {"--port", "0", "--backend", "A,127.0.0.1,9001",
-                                               "--backend", "B,::1,9002", "--max-body-bytes", "512",
-                                               "--upstream-timeout-ms", "200"};
+    const std::vector<std::string_view> args = {"--port",
+                                                "0",
+                                                "--backend",
+                                                "A,127.0.0.1,9001",
+                                                "--backend",
+                                                "B,::1,9002",
+                                                "--max-body-bytes",
+                                                "512",
+                                                "--upstream-timeout-ms",
+                                                "200"};
     const auto options = lb::parseProxyOptions(args);
     ASSERT_EQ(options.backends.size(), 2U);
     EXPECT_EQ(options.port, 0);
@@ -29,10 +36,16 @@ TEST(ProxyConfig, ParsesEndpointsLimitsAndRejectsInvalidInput) {
     EXPECT_EQ(options.upstreamTimeoutMs, 200U);
     EXPECT_TRUE(lb::parseProxyOptions({}).backends.empty());
     for (const auto& invalid : std::vector<std::vector<std::string_view>>{
-             {"--port", "65536"}, {"--backend", "A,host,0"}, {"--backend", "A:host:80"},
-             {"--backend", "A,host,80", "--backend", "A,other,90"}, {"--backend", "A,bad host,80"},
-             {"--listen", "localhost"}, {"--max-body-bytes", "16777217"},
-             {"--connect-timeout-ms", "0"}, {"--port"}, {"--unknown", "1"}}) {
+             {"--port", "65536"},
+             {"--backend", "A,host,0"},
+             {"--backend", "A:host:80"},
+             {"--backend", "A,host,80", "--backend", "A,other,90"},
+             {"--backend", "A,bad host,80"},
+             {"--listen", "localhost"},
+             {"--max-body-bytes", "16777217"},
+             {"--connect-timeout-ms", "0"},
+             {"--port"},
+             {"--unknown", "1"}}) {
         EXPECT_THROW(lb::parseProxyOptions(invalid), std::invalid_argument);
     }
 }
@@ -84,7 +97,8 @@ TEST(ProxyHttp, RemovesEveryConnectionTokenAndDeclaredTrailersCaseInsensitively)
     request.set(http::field::proxy_authorization, "secret");
     request.set("X-End-To-End", "retained");
     ASSERT_TRUE(lb::stripHopByHop(request.base()));
-    for (const auto* name : {"Connection", "X-Secret", "X-Other", "Trailer", "X-End", "TE", "Proxy-Authorization"}) {
+    for (const auto* name :
+         {"Connection", "X-Secret", "X-Other", "Trailer", "X-End", "TE", "Proxy-Authorization"}) {
         EXPECT_EQ(request.count(name), 0U) << name;
     }
     EXPECT_EQ(request["X-End-To-End"], "retained");

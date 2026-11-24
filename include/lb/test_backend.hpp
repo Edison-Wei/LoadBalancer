@@ -3,8 +3,8 @@
 #include <boost/asio/awaitable.hpp>
 #include <boost/beast/http.hpp>
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <string>
 #include <string_view>
@@ -33,11 +33,11 @@ void validateOptions(const Options& options);
 /// Confined to one io_context worker. Each connection may run a coroutine, but
 /// methods/state must not be accessed from other threads. No network I/O here.
 class Backend {
-public:
+  public:
     explicit Backend(Options options);
     boost::asio::awaitable<Response> respond(Request request);
 
-private:
+  private:
     Options m_options;
     bool m_ready;
     std::uint64_t m_sequence = 0;

@@ -1,4 +1,4 @@
-name: C++ build and tests
+name: Quality gates
 
 on:
   push:
@@ -9,6 +9,20 @@ permissions:
   contents: read
 
 jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned formatter
+        run: |
+          python3 -m venv build/quality-venv
+          build/quality-venv/bin/pip install clang-format==18.1.8
+      - name: Check owned source formatting and Python syntax
+        run: |
+          python3 scripts/format.py --clang-format build/quality-venv/bin/clang-format
+          python3 -m compileall -q scripts tests/integration benchmarks
+
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -28,8 +42,8 @@ jobs:
           sudo apt-get install -y cmake ninja-build g++-14 python3 curl
       - name: Record toolchain
         run: |
-          mkdir -p logs
-          { uname -a; cmake --version; ninja --version; "$CXX" --version; } > logs/toolchain.log
+          mkdir -p build/ci-logs
+          { uname -a; cmake --version; ninja --version; "$CXX" --version; } > build/ci-logs/toolchain.log
       - name: Configure
         shell: bash
         run: |
@@ -39,24 +53,35 @@ jobs:
           else
             snapshot_fallback=OFF
           fi
-          cmake --preset "${{ matrix.preset }}" -DLB_FORCE_MUTEX_SHARED_PTR="$snapshot_fallback" 2>&1 | tee logs/configure.log
+          if [ "$snapshot_fallback" = OFF ]; then
+            cat > build/ci-logs/native-probe.cpp <<'CPP'
+          #include <atomic>
+          #include <memory>
+          #ifndef __cpp_lib_atomic_shared_ptr
+          #error Native atomic shared_ptr is required in the native matrix
+          #endif
+          std::atomic<std::shared_ptr<int>> snapshot;
+          CPP
+            "$CXX" -std=c++20 -c build/ci-logs/native-probe.cpp -o build/ci-logs/native-probe.o
+          fi
+          cmake --preset "${{ matrix.preset }}" -DLB_FORCE_MUTEX_SHARED_PTR="$snapshot_fallback" 2>&1 | tee build/ci-logs/configure.log
       - name: Build
         shell: bash
         run: |
           set -o pipefail
-          cmake --build --preset "${{ matrix.preset }}" --parallel 2 2>&1 | tee logs/build.log
+          cmake --build --preset "${{ matrix.preset }}" --parallel 2 2>&1 | tee build/ci-logs/build.log
       - name: CTest
         shell: bash
         run: |
           set -o pipefail
-          ctest --preset "${{ matrix.preset }}" --output-junit "$PWD/logs/ctest.xml" 2>&1 | tee logs/ctest.log
+          ctest --preset "${{ matrix.preset }}" --output-junit "$PWD/build/ci-logs/ctest.xml" 2>&1 | tee build/ci-logs/ctest.log
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: foundation-${{ matrix.preset }}-${{ matrix.snapshot }}
+          name: checks-${{ matrix.preset }}-${{ matrix.snapshot }}
           path: |
-            logs/
+            build/ci-logs/
             build/${{ matrix.preset }}/CMakeFiles/CMakeConfigureLog.yaml
             build/${{ matrix.preset }}/Testing/Temporary/
             build/${{ matrix.preset }}/Testing/backend-process/
@@ -64,8 +89,11 @@ jobs:
             build/${{ matrix.preset }}/Testing/health-process/
             build/${{ matrix.preset }}/Testing/lifecycle-process/
             build/${{ matrix.preset }}/Testing/metrics-process/
+            build/${{ matrix.preset }}/Testing/chaos-*/
 
   monitoring:
+    env:
+      LB_GIT_REVISION: ${{ github.sha }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -95,3 +123,74 @@ jobs:
       - name: Stop owned stack
         if: always()
         run: docker compose down
+
+  container-chaos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build isolated chaos image
+        run: docker build --build-arg LB_GIT_REVISION="$GITHUB_SHA" -f tests/container/Dockerfile -t lb-chaos:ci .
+      - name: Run owned-process chaos without external networking
+        run: |
+          mkdir -p build/container-chaos
+          chmod 777 build/container-chaos
+          docker run --rm --network none --cpus 2 --memory 2g --pids-limit 512 -v "$PWD/build/container-chaos:/evidence" lb-chaos:ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-chaos
+          path: build/container-chaos/
+
+  runtime-artifact:
+    needs: [format, build, monitoring, container-chaos]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CC: gcc-14
+      CXX: g++-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++-14 python3 curl
+      - name: Build clean Release revision
+        run: |
+          cmake --preset release
+          cmake --build --preset release --parallel 2
+          ctest --preset release --output-junit "$PWD/build/release-tests.xml"
+      - name: Package and verify the gated revision
+        run: |
+          python3 scripts/package_release.py --require-clean --output build/runtime-artifacts
+          python3 scripts/verify_release.py build/runtime-artifacts/*.tar.gz --logs build/release-verification
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ github.sha }}
+          path: build/runtime-artifacts/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-verification-${{ github.sha }}
+          path: |
+            build/release-verification/
+            build/release-tests.xml
+
+  quality-gate:
+    if: always()
+    needs: [format, build, monitoring, container-chaos, runtime-artifact]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every gate to succeed
+        env:
+          GATE_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ["GATE_RESULTS"])
+          failed = {name: result["result"] for name, result in results.items() if result["result"] != "success"}
+          print(results)
+          if failed:
+              raise SystemExit(str(failed))
+          PY

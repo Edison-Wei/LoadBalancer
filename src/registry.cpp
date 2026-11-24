@@ -11,7 +11,7 @@ namespace lb {
 namespace {
 
 ServerListSnapshot makeEligibleSnapshot(const ServerList& backends, const BackendPtr& changed = {},
-                                      BackendState newState = BackendState::UNKNOWN) {
+                                        BackendState newState = BackendState::UNKNOWN) {
     auto eligible = std::make_shared<ServerList>();
     eligible->reserve(backends.size());
     for (const auto& backend : backends) {
@@ -53,9 +53,7 @@ BackendRegistry::BackendRegistry(const std::vector<BackendConfig>& backends)
     replaceBackends(backends);
 }
 
-ServerListSnapshot BackendRegistry::snapshot() const {
-    return m_eligible.load();
-}
+ServerListSnapshot BackendRegistry::snapshot() const { return m_eligible.load(); }
 
 ServerList BackendRegistry::configuredBackends() const {
     const std::lock_guard lock(m_writerMutex);
@@ -75,15 +73,14 @@ void BackendRegistry::replaceBackends(const std::vector<BackendConfig>& backends
     ServerList replacement;
     replacement.reserve(backends.size());
     for (const auto& config : backends) {
-        const auto found = std::find_if(m_backends.begin(), m_backends.end(),
-                                        [&config](const auto& backend) {
-                                            return backend->id == config.id &&
-                                                   backend->host == config.host &&
-                                                   backend->port == config.port;
-                                        });
-        replacement.push_back(found == m_backends.end()
-                                  ? std::make_shared<BackendServer>(config.id, config.host, config.port)
-                                  : *found);
+        const auto found =
+            std::find_if(m_backends.begin(), m_backends.end(), [&config](const auto& backend) {
+                return backend->id == config.id && backend->host == config.host &&
+                       backend->port == config.port;
+            });
+        replacement.push_back(found == m_backends.end() ? std::make_shared<BackendServer>(
+                                                              config.id, config.host, config.port)
+                                                        : *found);
     }
     // Complete allocations before mutating published membership.
     auto eligible = makeEligibleSnapshot(replacement);
@@ -103,7 +100,8 @@ bool BackendRegistry::setState(std::string_view id, BackendState state) {
     return true;
 }
 
-bool BackendRegistry::setStateIfCurrent(const BackendPtr& backend, BackendState expected, BackendState state) {
+bool BackendRegistry::setStateIfCurrent(const BackendPtr& backend, BackendState expected,
+                                        BackendState state) {
     validateState(state);
     const std::lock_guard lock(m_writerMutex);
     if (!backend || backend->state() != expected || expected == BackendState::DRAINING ||

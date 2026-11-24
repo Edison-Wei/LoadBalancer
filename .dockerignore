@@ -3,8 +3,7 @@ build
 .agents
 .codex
 .aws
-docs
-skills
+docs/benchmarks
 tests
 __pycache__
 *.pyc

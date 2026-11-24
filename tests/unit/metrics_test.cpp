@@ -16,12 +16,15 @@ TEST(Metrics, CountsCompletedResponsesAndCumulativeFixedHistogram) {
     state.metrics.completed("GET", 200, -1);
     state.metrics.completed("GET", 200, std::numeric_limits<double>::infinity());
     auto text = state.metrics.render(state);
-    EXPECT_NE(text.find("lb_requests_total{method=\"GET\",status_class=\"2xx\"} 1\n"), std::string::npos);
-    EXPECT_NE(text.find("lb_requests_total{method=\"OTHER\",status_class=\"4xx\"} 1\n"), std::string::npos);
+    EXPECT_NE(text.find("lb_requests_total{method=\"GET\",status_class=\"2xx\"} 1\n"),
+              std::string::npos);
+    EXPECT_NE(text.find("lb_requests_total{method=\"OTHER\",status_class=\"4xx\"} 1\n"),
+              std::string::npos);
     EXPECT_NE(text.find("le=\"0.0050000000000000001\"} 1\n"), std::string::npos);
     EXPECT_NE(text.find("le=\"0.25\"} 2\n"), std::string::npos);
     EXPECT_NE(text.find("le=\"+Inf\"} 3\n"), std::string::npos);
-    EXPECT_NE(text.find("lb_request_duration_seconds_count{route=\"proxy\"} 3\n"), std::string::npos);
+    EXPECT_NE(text.find("lb_request_duration_seconds_count{route=\"proxy\"} 3\n"),
+              std::string::npos);
     EXPECT_EQ(text.find("arbitrary-user-method"), std::string::npos);
     EXPECT_EQ(text.back(), '\n');
 }
@@ -37,8 +40,12 @@ TEST(Metrics, ConcurrentUpdatesAndScrapesPreserveCounts) {
     });
     std::vector<std::jthread> workers;
     for (int worker = 0; worker < 8; ++worker)
-        workers.emplace_back([&] { for (int i = 0; i < 1000; ++i) state.metrics.completed("POST", 201, 0.01); });
-    for (auto& worker : workers) worker.join();
+        workers.emplace_back([&] {
+            for (int i = 0; i < 1000; ++i)
+                state.metrics.completed("POST", 201, 0.01);
+        });
+    for (auto& worker : workers)
+        worker.join();
     done.store(true);
     scraper.join();
     const auto text = state.metrics.render(state);
@@ -66,7 +73,9 @@ TEST(MetricsConfig, DefaultsPrivateAndAcceptsEphemeralButRejectsInvalidAddresses
     EXPECT_EQ(defaults.metricsPort, 9091);
     const std::vector<std::string_view> valid{"--metrics-listen", "::1", "--metrics-port", "0"};
     EXPECT_EQ(lb::parseProxyOptions(valid).metricsPort, 0);
-    for (const auto& args : std::vector<std::vector<std::string_view>>{
-             {"--metrics-listen", "localhost"}, {"--metrics-port", "65536"}, {"--metrics-port", "-1"}})
+    for (const auto& args :
+         std::vector<std::vector<std::string_view>>{{"--metrics-listen", "localhost"},
+                                                    {"--metrics-port", "65536"},
+                                                    {"--metrics-port", "-1"}})
         EXPECT_THROW(lb::parseProxyOptions(args), std::invalid_argument);
 }

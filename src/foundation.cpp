@@ -39,7 +39,7 @@ FoundationResult runFoundationSmoke() {
     }
 
     constexpr std::string_view REQUEST =
-        "POST /phase-0 HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nhello";
+        "POST /smoke HTTP/1.1\r\nHost: localhost\r\nContent-Length: 5\r\n\r\nhello";
     boost::beast::http::request_parser<boost::beast::http::string_body> parser;
     parser.body_limit(1024);
     parser.header_limit(4096);

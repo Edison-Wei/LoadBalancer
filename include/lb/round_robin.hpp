@@ -10,7 +10,7 @@ namespace lb {
 /// Concurrent per-request scheduler. Selection uses only the supplied snapshot,
 /// never a later state() value. Empty/null snapshots do not advance the sequence.
 class RoundRobin {
-public:
+  public:
     explicit RoundRobin(std::uint64_t initialSequence = 0) noexcept : m_sequence(initialSequence) {}
 
     [[nodiscard]] BackendPtr select(const ServerListSnapshot& snapshot) noexcept {
@@ -23,7 +23,7 @@ public:
         return (*snapshot)[sequence % snapshot->size()];
     }
 
-private:
+  private:
     std::atomic<std::uint64_t> m_sequence;
 };
 

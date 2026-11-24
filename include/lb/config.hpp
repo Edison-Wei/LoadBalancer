@@ -43,6 +43,7 @@ struct ProxyOptions {
     std::uint32_t maxHeaderBytes = 16384;
     HealthOptions health;
     bool help = false;
+    bool version = false;
     bool smoke = false;
 };
 

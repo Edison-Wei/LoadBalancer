@@ -32,17 +32,23 @@ simulator::Response respond(simulator::Backend& backend, simulator::Request inco
 }
 
 TEST(TestBackend, ParsesOptionsAndRejectsInvalidOrExposedTestMode) {
-    const std::vector<std::string_view> args = {"--id", "backend-1", "--listen", "127.0.0.1",
-                                               "--port", "0", "--test-mode", "--not-ready"};
+    const std::vector<std::string_view> args = {
+        "--id", "backend-1", "--listen", "127.0.0.1", "--port", "0", "--test-mode", "--not-ready"};
     const auto options = simulator::parseOptions(args);
     EXPECT_EQ(options.id, "backend-1");
     EXPECT_EQ(options.port, 0);
     EXPECT_TRUE(options.testMode);
     EXPECT_FALSE(options.ready);
-    for (const auto& invalid : std::vector<std::vector<std::string_view>>{
-             {"--port", "65536"}, {"--port", "-1"}, {"--port", "80junk"}, {"--port"},
-             {"--unknown"}, {"--id", "bad\"id"}, {"--listen", "localhost"},
-             {"--test-mode", "--listen", "0.0.0.0"}, {"--test-mode", "--listen", "::"}}) {
+    for (const auto& invalid :
+         std::vector<std::vector<std::string_view>>{{"--port", "65536"},
+                                                    {"--port", "-1"},
+                                                    {"--port", "80junk"},
+                                                    {"--port"},
+                                                    {"--unknown"},
+                                                    {"--id", "bad\"id"},
+                                                    {"--listen", "localhost"},
+                                                    {"--test-mode", "--listen", "0.0.0.0"},
+                                                    {"--test-mode", "--listen", "::"}}) {
         EXPECT_THROW(simulator::parseOptions(invalid), std::invalid_argument);
     }
     const std::vector<std::string_view> ipv6 = {"--test-mode", "--listen", "::1"};
@@ -75,14 +81,18 @@ TEST(TestBackend, ReadinessToggleIsOptInAndHealthDoesNotControlBusinessResponses
     options.testMode = true;
     simulator::Backend backend(options);
     EXPECT_EQ(respond(backend, request(http::verb::get, "/health")).result_int(), 200);
-    EXPECT_EQ(respond(backend, request(http::verb::post, "/admin/ready?value=false")).result_int(), 200);
+    EXPECT_EQ(respond(backend, request(http::verb::post, "/admin/ready?value=false")).result_int(),
+              200);
     EXPECT_EQ(respond(backend, request(http::verb::get, "/health")).result_int(), 503);
     EXPECT_EQ(respond(backend, request(http::verb::get, "/request")).result_int(), 200);
-    EXPECT_EQ(respond(backend, request(http::verb::post, "/admin/ready?value=true")).result_int(), 200);
+    EXPECT_EQ(respond(backend, request(http::verb::post, "/admin/ready?value=true")).result_int(),
+              200);
     EXPECT_EQ(respond(backend, request(http::verb::get, "/health")).result_int(), 200);
-    EXPECT_EQ(respond(backend, request(http::verb::post, "/admin/ready?value=wrong")).result_int(), 400);
+    EXPECT_EQ(respond(backend, request(http::verb::post, "/admin/ready?value=wrong")).result_int(),
+              400);
     simulator::Backend normal(simulator::Options{});
-    EXPECT_EQ(respond(normal, request(http::verb::post, "/admin/ready?value=false")).result_int(), 404);
+    EXPECT_EQ(respond(normal, request(http::verb::post, "/admin/ready?value=false")).result_int(),
+              404);
     options.ready = false;
     simulator::Backend initiallyUnready(options);
     EXPECT_EQ(respond(initiallyUnready, request(http::verb::get, "/health")).result_int(), 503);
@@ -114,7 +124,8 @@ TEST(TestBackend, ErrorAndBoundedLargePayloadAreDeterministic) {
     EXPECT_EQ(respond(backend, request(http::verb::get, "/error")).result_int(), 500);
     EXPECT_EQ(respond(backend, request(http::verb::get, "/large")).body().size(), 65536U);
     EXPECT_EQ(respond(backend, request(http::verb::get, "/large?bytes=0")).body(), "");
-    EXPECT_EQ(respond(backend, request(http::verb::get, "/large?bytes=1024")).body(), std::string(1024, 'x'));
+    EXPECT_EQ(respond(backend, request(http::verb::get, "/large?bytes=1024")).body(),
+              std::string(1024, 'x'));
     EXPECT_EQ(respond(backend, request(http::verb::get, "/large?bytes=1048576")).body().size(),
               simulator::MAX_BODY_BYTES);
     for (const auto* target : {"/large?bytes=1048577", "/large?bytes=-1", "/large?wrong=2",

@@ -16,5 +16,6 @@ bool stripHopByHop(boost::beast::http::fields& fields);
 bool prepareUpstreamRequest(ProxyRequest& request, const BackendServer& backend,
                             std::string_view clientAddress);
 bool prepareClientResponse(ProxyResponse& response, bool keepAlive, bool head);
-ProxyResponse proxyError(boost::beast::http::status status, bool keepAlive = false, bool head = false);
+ProxyResponse proxyError(boost::beast::http::status status, bool keepAlive = false,
+                         bool head = false);
 } // namespace lb

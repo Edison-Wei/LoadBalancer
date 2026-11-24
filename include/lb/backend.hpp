@@ -53,7 +53,7 @@ struct BackendServer {
         return m_state.load(std::memory_order_acquire);
     }
 
-private:
+  private:
     friend class BackendRegistry;
     std::atomic<BackendState> m_state{BackendState::UNKNOWN};
 };

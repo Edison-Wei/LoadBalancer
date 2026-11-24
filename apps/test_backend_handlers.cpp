@@ -32,7 +32,8 @@ bool validId(std::string_view value, std::size_t limit) {
 unsigned parseNumber(std::string_view value, unsigned limit) {
     unsigned number = 0;
     const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), number);
-    if (value.empty() || error != std::errc{} || end != value.data() + value.size() || number > limit) {
+    if (value.empty() || error != std::errc{} || end != value.data() + value.size() ||
+        number > limit) {
         throw std::invalid_argument("Invalid or out-of-range unsigned integer");
     }
     return number;
@@ -106,7 +107,8 @@ boost::asio::awaitable<Response> Backend::respond(Request request) {
     response.set("X-Backend-ID", m_options.id);
     const std::string generated = m_options.id + "-" + std::to_string(++m_sequence);
     const auto supplied = request["X-Request-ID"];
-    const std::string requestId = supplied.empty() ? generated : std::string(supplied.data(), supplied.size());
+    const std::string requestId =
+        supplied.empty() ? generated : std::string(supplied.data(), supplied.size());
     const auto fail = [&](http::status status, std::string_view reason) {
         response.result(status);
         response.body() = "{\"error\":\"" + std::string(reason) + "\"}";
@@ -126,12 +128,14 @@ boost::asio::awaitable<Response> Backend::respond(Request request) {
     const auto rawTarget = request.target();
     const std::string_view target(rawTarget.data(), rawTarget.size());
     const auto path = target.substr(0, target.find('?'));
-    const auto identity = "{\"server_id\":\"" + m_options.id + "\",\"request_id\":\"" + requestId + "\"}";
+    const auto identity =
+        "{\"server_id\":\"" + m_options.id + "\",\"request_id\":\"" + requestId + "\"}";
 
     if (request.version() != 11) {
         fail(http::status::http_version_not_supported, "Only HTTP/1.1 is supported");
         response.keep_alive(false);
-    } else if (request.method() == http::verb::connect || request.count(http::field::upgrade) != 0) {
+    } else if (request.method() == http::verb::connect ||
+               request.count(http::field::upgrade) != 0) {
         fail(http::status::not_implemented, "Tunneling and upgrades are unsupported");
         response.keep_alive(false);
     } else if (request.body().size() > MAX_BODY_BYTES) {
@@ -157,7 +161,8 @@ boost::asio::awaitable<Response> Backend::respond(Request request) {
             response.set("X-Echo-Token", request["X-Echo-Token"]);
         }
     } else if ((path == "/health" || path == "/request" || path == "/slow" || path == "/error" ||
-                path == "/large") && request.method() == http::verb::get) {
+                path == "/large") &&
+               request.method() == http::verb::get) {
         response.body() = identity;
         try {
             if (path == "/health" && target == path) {
@@ -184,7 +189,8 @@ boost::asio::awaitable<Response> Backend::respond(Request request) {
     } else if (path == "/health" || path == "/request" || path == "/slow" || path == "/error" ||
                path == "/large" || path == "/echo" || path == "/admin/ready") {
         fail(http::status::method_not_allowed, "Method not allowed");
-        response.set(http::field::allow, path == "/echo" || path == "/admin/ready" ? "POST" : "GET");
+        response.set(http::field::allow,
+                     path == "/echo" || path == "/admin/ready" ? "POST" : "GET");
     } else {
         fail(http::status::not_found, "Not found");
     }

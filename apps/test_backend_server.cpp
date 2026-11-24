@@ -26,8 +26,8 @@ using tcp = asio::ip::tcp;
 
 void logRequest(std::string_view event, const Response& response) {
     std::clog << "{\"event\":\"" << event << "\",\"server_id\":\"" << response["X-Backend-ID"]
-              << "\",\"request_id\":\"" << response["X-Request-ID"] << "\",\"status\":"
-              << response.result_int() << "}" << std::endl;
+              << "\",\"request_id\":\"" << response["X-Request-ID"]
+              << "\",\"status\":" << response.result_int() << "}" << std::endl;
 }
 
 asio::awaitable<void> session(tcp::socket socket, std::shared_ptr<Backend> backend) {
@@ -41,7 +41,7 @@ asio::awaitable<void> session(tcp::socket socket, std::shared_ptr<Backend> backe
             stream.expires_after(std::chrono::seconds(15));
             boost::system::error_code error;
             co_await http::async_read(stream, buffer, parser,
-                                     asio::redirect_error(asio::use_awaitable, error));
+                                      asio::redirect_error(asio::use_awaitable, error));
             if (error == http::error::end_of_stream) {
                 break;
             }
@@ -55,13 +55,13 @@ asio::awaitable<void> session(tcp::socket socket, std::shared_ptr<Backend> backe
                 response.keep_alive(false);
                 response.prepare_payload();
                 co_await http::async_write(stream, response,
-                                          asio::redirect_error(asio::use_awaitable, error));
+                                           asio::redirect_error(asio::use_awaitable, error));
                 break;
             }
             auto response = co_await backend->respond(parser.release());
             stream.expires_after(std::chrono::seconds(15));
             co_await http::async_write(stream, response,
-                                      asio::redirect_error(asio::use_awaitable, error));
+                                       asio::redirect_error(asio::use_awaitable, error));
             logRequest(error ? "request_failed" : "completed", response);
             if (error || !response.keep_alive()) {
                 break;
@@ -77,7 +77,8 @@ asio::awaitable<void> session(tcp::socket socket, std::shared_ptr<Backend> backe
 asio::awaitable<void> acceptConnections(tcp::acceptor& acceptor, std::shared_ptr<Backend> backend) {
     for (;;) {
         auto socket = co_await acceptor.async_accept(asio::use_awaitable);
-        asio::co_spawn(acceptor.get_executor(), session(std::move(socket), backend), asio::detached);
+        asio::co_spawn(acceptor.get_executor(), session(std::move(socket), backend),
+                       asio::detached);
     }
 }
 } // namespace
@@ -104,7 +105,8 @@ void run(const Options& options) {
         context.stop();
     });
     std::cout << "{\"event\":\"listening\",\"server_id\":\"" << options.id << "\",\"host\":\""
-              << options.listen << "\",\"port\":" << acceptor.local_endpoint().port() << "}" << std::endl;
+              << options.listen << "\",\"port\":" << acceptor.local_endpoint().port() << "}"
+              << std::endl;
     context.run();
     if (failure) {
         std::rethrow_exception(failure);

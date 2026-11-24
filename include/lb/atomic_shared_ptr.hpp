@@ -13,7 +13,7 @@ namespace lb {
 /// updates separately; individually safe loads/stores do not prevent lost updates.
 /// The wrapper must outlive all concurrent calls, just like a mutex or std::atomic.
 template <typename T> class AtomicSharedPtr {
-public:
+  public:
     AtomicSharedPtr() = default;
     explicit AtomicSharedPtr(std::shared_ptr<T> value) : m_value(std::move(value)) {}
 
@@ -22,7 +22,7 @@ public:
 
     /// Takes an owning snapshot; no lock remains held when the caller uses it.
     [[nodiscard]] std::shared_ptr<T> load() const {
-#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L && \
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L &&              \
     !defined(LB_FORCE_MUTEX_SHARED_PTR)
         return m_value.load(std::memory_order_acquire);
 #else
@@ -34,7 +34,7 @@ public:
     /// Publishes the fully initialized value. Releases the previous object outside
     /// the fallback mutex so destructors/custom deleters may safely reenter load().
     void store(std::shared_ptr<T> value) {
-#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L && \
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L &&              \
     !defined(LB_FORCE_MUTEX_SHARED_PTR)
         m_value.store(std::move(value), std::memory_order_release);
 #else
@@ -45,8 +45,8 @@ public:
 #endif
     }
 
-private:
-#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L && \
+  private:
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L &&              \
     !defined(LB_FORCE_MUTEX_SHARED_PTR)
     std::atomic<std::shared_ptr<T>> m_value;
 #else

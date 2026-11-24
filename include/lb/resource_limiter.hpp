@@ -17,9 +17,10 @@ class ResourceLimiter {
         std::atomic<std::size_t> used{0};
         std::atomic<std::size_t> peak{0};
     };
-public:
+
+  public:
     class Lease {
-    public:
+      public:
         Lease(const Lease&) = delete;
         Lease& operator=(const Lease&) = delete;
         Lease(Lease&& other) noexcept : m_state(std::move(other.m_state)) {}
@@ -31,7 +32,8 @@ public:
             return *this;
         }
         ~Lease() { release(); }
-    private:
+
+      private:
         friend class ResourceLimiter;
         explicit Lease(std::shared_ptr<State> state) : m_state(std::move(state)) {}
         void release() noexcept {
@@ -54,15 +56,21 @@ public:
             if (m_state->used.compare_exchange_weak(used, used + 1, std::memory_order_relaxed)) {
                 auto peak = m_state->peak.load(std::memory_order_relaxed);
                 while (peak < used + 1 && !m_state->peak.compare_exchange_weak(
-                           peak, used + 1, std::memory_order_relaxed)) {}
+                                              peak, used + 1, std::memory_order_relaxed)) {
+                }
                 return Lease(m_state);
             }
         }
         return std::nullopt;
     }
-    [[nodiscard]] std::size_t used() const noexcept { return m_state->used.load(std::memory_order_relaxed); }
-    [[nodiscard]] std::size_t peak() const noexcept { return m_state->peak.load(std::memory_order_relaxed); }
-private:
+    [[nodiscard]] std::size_t used() const noexcept {
+        return m_state->used.load(std::memory_order_relaxed);
+    }
+    [[nodiscard]] std::size_t peak() const noexcept {
+        return m_state->peak.load(std::memory_order_relaxed);
+    }
+
+  private:
     std::shared_ptr<State> m_state;
 };
 } // namespace lb

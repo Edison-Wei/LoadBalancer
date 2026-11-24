@@ -135,8 +135,8 @@ TEST(RoundRobin, RR07ConcurrentReplacementPreservesObservedSnapshotMembership) {
                     if (selected) {
                         valid.store(false);
                     }
-                } else if (!selected ||
-                           std::find(snapshot->begin(), snapshot->end(), selected) == snapshot->end()) {
+                } else if (!selected || std::find(snapshot->begin(), snapshot->end(), selected) ==
+                                            snapshot->end()) {
                     valid.store(false);
                 }
             }

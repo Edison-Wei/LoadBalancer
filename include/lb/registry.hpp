@@ -14,7 +14,7 @@ namespace lb {
 /// state changes, and publication, preventing lost read/modify/write updates.
 /// Readers release the snapshot publication lock before selecting or doing I/O.
 class BackendRegistry {
-public:
+  public:
     explicit BackendRegistry(const std::vector<BackendConfig>& backends = {});
 
     [[nodiscard]] ServerListSnapshot snapshot() const;
@@ -34,7 +34,7 @@ public:
     /// observed before its probe. Never overrides DRAINING or a removed endpoint.
     bool setStateIfCurrent(const BackendPtr& backend, BackendState expected, BackendState state);
 
-private:
+  private:
     void publishState(const BackendPtr& backend, BackendState state);
     mutable std::mutex m_writerMutex;
     ServerList m_backends;

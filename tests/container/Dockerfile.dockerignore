@@ -1,0 +1,9 @@
+build
+.git
+.agents
+.codex
+.aws
+docs/benchmarks
+__pycache__
+*.pyc
+.DS_Store

@@ -43,13 +43,14 @@ struct ProxyState {
 /// Socket, timers, cancellation handles, and flags are confined to this socket's
 /// strand. Public shutdown methods dispatch onto that executor.
 class ClientSession : public std::enable_shared_from_this<ClientSession> {
-public:
+  public:
     ClientSession(boost::asio::ip::tcp::socket socket, std::shared_ptr<ProxyState> state,
                   ResourceLimiter::Lease connection, std::uint64_t id);
     boost::asio::awaitable<void> run();
     void requestDrain();
     void forceClose();
-private:
+
+  private:
     boost::asio::awaitable<bool> writeResponse(ProxyResponse& response);
     void watchDisconnect();
     void stopWatching();

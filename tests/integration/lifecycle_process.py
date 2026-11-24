@@ -352,13 +352,19 @@ def main():
         checks.append("upstream-write-deadline")
 
         process, port = start_proxy("client-write", wire_endpoint,
-            ["--max-body-bytes", "16777216", "--client-write-timeout-ms", "80", "--upstream-timeout-ms", "10000"])
+            ["--max-body-bytes", "16777216", "--client-write-timeout-ms", "80",
+             "--upstream-read-timeout-ms", "20000", "--upstream-timeout-ms", "30000"])
         stream = socket.socket()
         sockets.append(stream)
         stream.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1024)
         stream.settimeout(5)
         stream.connect(("127.0.0.1", port))
         stream.sendall(b"GET /large HTTP/1.1\r\nHost: x\r\n\r\n")
+        # Isolate downstream backpressure from the cost of receiving/parsing a
+        # 16 MiB origin response under sanitizers. A short upstream deadline can
+        # otherwise return a tiny 504 before the client write is ever exercised.
+        wait_for(lambda: any(event.get("event") == "upstream_complete" and event.get("status") == 200
+                             for event in events(process)), "Large origin response did not complete", timeout=30)
         wait_for(lambda: any(event["event"] == "client_write_timeout" for event in events(process)),
                  "Slow receiver escaped client write deadline")
         stream.close()

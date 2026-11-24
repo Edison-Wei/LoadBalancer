@@ -45,7 +45,8 @@ TEST(ResourceLimiter, LeasesSurviveOwnerAndReleaseDuringExceptionUnwinding) {
         auto scoped = bounded.tryAcquire();
         ASSERT_TRUE(scoped);
         throw std::runtime_error("test");
-    } catch (const std::runtime_error&) {}
+    } catch (const std::runtime_error&) {
+    }
     EXPECT_EQ(bounded.used(), 0U);
     EXPECT_TRUE(bounded.tryAcquire());
 }
@@ -59,7 +60,8 @@ TEST(ResourceLimiter, ConcurrentAdmissionNeverExceedsCap) {
     for (int index = 0; index < 8; ++index) {
         workers.emplace_back([&] {
             auto lease = limiter.tryAcquire();
-            if (!lease) admitted.store(false);
+            if (!lease)
+                admitted.store(false);
             ready.count_down();
             release.wait();
         });
@@ -69,16 +71,31 @@ TEST(ResourceLimiter, ConcurrentAdmissionNeverExceedsCap) {
     EXPECT_EQ(limiter.used(), 8U);
     EXPECT_FALSE(limiter.tryAcquire());
     release.count_down();
-    for (auto& worker : workers) worker.join();
+    for (auto& worker : workers)
+        worker.join();
     EXPECT_EQ(limiter.used(), 0U);
     EXPECT_EQ(limiter.peak(), 8U);
 }
 
 TEST(WorkerConfig, ParsesResourceAndLifecycleBounds) {
-    const std::vector<std::string_view> args = {"--workers", "8", "--max-connections", "1000",
-        "--max-inflight", "500", "--max-upstream-connections", "400", "--shutdown-grace-ms", "0",
-        "--client-read-timeout-ms", "100", "--client-write-timeout-ms", "200",
-        "--upstream-write-timeout-ms", "300", "--upstream-read-timeout-ms", "400"};
+    const std::vector<std::string_view> args = {"--workers",
+                                                "8",
+                                                "--max-connections",
+                                                "1000",
+                                                "--max-inflight",
+                                                "500",
+                                                "--max-upstream-connections",
+                                                "400",
+                                                "--shutdown-grace-ms",
+                                                "0",
+                                                "--client-read-timeout-ms",
+                                                "100",
+                                                "--client-write-timeout-ms",
+                                                "200",
+                                                "--upstream-write-timeout-ms",
+                                                "300",
+                                                "--upstream-read-timeout-ms",
+                                                "400"};
     const auto options = lb::parseProxyOptions(args);
     EXPECT_EQ(options.workers, 8U);
     EXPECT_EQ(options.maxConnections, 1000U);
@@ -92,10 +109,14 @@ TEST(WorkerConfig, ParsesResourceAndLifecycleBounds) {
     const std::vector<std::string_view> automatic = {"--workers", "0"};
     EXPECT_GE(lb::parseProxyOptions(automatic).workers, 1U);
     EXPECT_LE(lb::parseProxyOptions(automatic).workers, 64U);
-    for (const auto& invalid : std::vector<std::vector<std::string_view>>{
-        {"--workers", "65"}, {"--max-connections", "0"}, {"--max-inflight", "0"},
-        {"--max-upstream-connections", "65537"}, {"--shutdown-grace-ms", "60001"},
-        {"--upstream-write-timeout-ms", "0"}, {"--client-write-timeout-ms", "0"}}) {
+    for (const auto& invalid :
+         std::vector<std::vector<std::string_view>>{{"--workers", "65"},
+                                                    {"--max-connections", "0"},
+                                                    {"--max-inflight", "0"},
+                                                    {"--max-upstream-connections", "65537"},
+                                                    {"--shutdown-grace-ms", "60001"},
+                                                    {"--upstream-write-timeout-ms", "0"},
+                                                    {"--client-write-timeout-ms", "0"}}) {
         EXPECT_THROW(lb::parseProxyOptions(invalid), std::invalid_argument);
     }
 }
@@ -110,7 +131,8 @@ TEST(WorkerLogging, ConcurrentEventsStayOnSeparateCompleteLines) {
                 lb::LogLine{} << "{\"thread\":" << thread << ",\"index\":" << index << "}";
         });
     }
-    for (auto& worker : workers) worker.join();
+    for (auto& worker : workers)
+        worker.join();
     std::clog.rdbuf(previous);
     std::istringstream lines(captured.str());
     std::string line;

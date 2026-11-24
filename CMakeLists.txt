@@ -9,6 +9,7 @@ include(CTest)
 include(FetchContent)
 find_package(Threads REQUIRED)
 include(cmake/Sanitizers.cmake)
+include(cmake/BuildInfo.cmake)
 
 option(LB_FORCE_MUTEX_SHARED_PTR "Exercise the mutex snapshot fallback on any platform" OFF)
 add_library(lb_snapshot INTERFACE)
@@ -20,7 +21,7 @@ if(LB_FORCE_MUTEX_SHARED_PTR)
 endif()
 
 # One CMake-ready Boost archive supplies Asio, Beast, and their dependencies.
-# Version pins match the roadmap. Archive hashes can be added after download validation.
+# Dependencies are pinned; update versions deliberately and validate the resulting builds.
 set(BOOST_INCLUDE_LIBRARIES "asio;beast;system")
 set(BOOST_ENABLE_CMAKE ON)
 FetchContent_Declare(
@@ -37,9 +38,10 @@ target_include_directories(lb_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(lb_core PUBLIC cxx_std_20)
 target_link_libraries(lb_core PUBLIC Boost::asio Boost::beast lb_snapshot)
 
-# --smoke retains the Phase 0 foundation check; ordinary startup runs the proxy.
+# --smoke checks the coroutine/parser foundation; ordinary startup runs the proxy.
 add_executable(load_balancer src/main.cpp)
 target_link_libraries(load_balancer PRIVATE lb_core)
+target_include_directories(load_balancer PRIVATE "${PROJECT_BINARY_DIR}/generated")
 
 add_library(lb_test_backend apps/test_backend_handlers.cpp apps/test_backend_server.cpp)
 target_link_libraries(lb_test_backend PUBLIC Boost::asio Boost::beast lb_snapshot)
@@ -73,6 +75,8 @@ if(BUILD_TESTING)
   # Discovery at test time also works with instrumented executables.
   gtest_discover_tests(lb_tests DISCOVERY_MODE PRE_TEST
     DISCOVERY_TIMEOUT 30 PROPERTIES TIMEOUT 10)
+  add_test(NAME cli_version COMMAND load_balancer --version)
+  set_tests_properties(cli_version PROPERTIES TIMEOUT 10 PASS_REGULAR_EXPRESSION "revision")
   add_test(NAME foundation_cli COMMAND load_balancer --smoke)
   set_tests_properties(foundation_cli PROPERTIES TIMEOUT 10)
 
@@ -107,6 +111,13 @@ if(BUILD_TESTING)
       --backend "$<TARGET_FILE:test_backend>" --proxy "$<TARGET_FILE:load_balancer>"
       --logs "${CMAKE_CURRENT_BINARY_DIR}/Testing/metrics-process")
   set_tests_properties(metrics_process PROPERTIES TIMEOUT 60 LABELS integration)
+  foreach(chaos_seed IN ITEMS 7 73)
+    add_test(NAME chaos_seed_${chaos_seed}
+      COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/chaos_process.py"
+        --backend "$<TARGET_FILE:test_backend>" --proxy "$<TARGET_FILE:load_balancer>"
+        --seed "${chaos_seed}" --logs "${CMAKE_CURRENT_BINARY_DIR}/Testing/chaos-${chaos_seed}")
+    set_tests_properties(chaos_seed_${chaos_seed} PROPERTIES TIMEOUT 120 LABELS "integration;chaos")
+  endforeach()
   add_test(NAME test_backend_help COMMAND test_backend --help)
   set_tests_properties(test_backend_help PROPERTIES TIMEOUT 10)
   add_test(NAME load_balancer_help COMMAND load_balancer --help)
@@ -120,3 +131,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
   endforeach()
 endif()
+
+# Install only project-owned runtime files; dependency install rules are excluded
+# by the Runtime component selected by scripts/package_release.py.
+install(TARGETS load_balancer test_backend RUNTIME DESTINATION bin COMPONENT Runtime)
+install(PROGRAMS scripts/run_proxy.py DESTINATION bin RENAME run-proxy.py COMPONENT Runtime)
+install(FILES examples/proxy.args DESTINATION share/load-balancer/examples COMPONENT Runtime)
+install(FILES "${PROJECT_BINARY_DIR}/build-info.json" DESTINATION share/load-balancer COMPONENT Runtime)
+install(FILES docs/protocol-support.md docs/security.md DESTINATION share/load-balancer/docs COMPONENT Runtime)
+install(FILES monitoring/README.md DESTINATION share/load-balancer/monitoring COMPONENT Runtime)
+install(FILES LICENSE DESTINATION share/load-balancer COMPONENT Runtime)
+install(FILES docs/release-usage.md DESTINATION . RENAME README.md COMPONENT Runtime)

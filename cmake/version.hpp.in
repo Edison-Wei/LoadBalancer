@@ -1,0 +1,7 @@
+#pragma once
+
+#include <string_view>
+
+namespace lb {
+inline constexpr std::string_view BUILD_INFO_JSON = R"lb(@LB_BUILD_JSON@)lb";
+} // namespace lb

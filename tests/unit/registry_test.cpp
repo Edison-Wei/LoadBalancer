@@ -11,7 +11,8 @@
 
 namespace {
 
-const std::vector<lb::BackendConfig> BACKENDS = {{"A", "localhost", 9001}, {"B", "localhost", 9002}};
+const std::vector<lb::BackendConfig> BACKENDS = {{"A", "localhost", 9001},
+                                                 {"B", "localhost", 9002}};
 
 TEST(Registry, StartsFailClosedAndReportsUnknownIds) {
     lb::BackendRegistry registry(BACKENDS);
@@ -34,8 +35,8 @@ TEST(Registry, PublishesOnlyHealthyAndAllowsRecovery) {
     lb::BackendRegistry registry(BACKENDS);
     ASSERT_TRUE(registry.setState("A", lb::BackendState::HEALTHY));
     ASSERT_EQ(registry.snapshot()->size(), 1U);
-    for (const auto state : {lb::BackendState::UNHEALTHY, lb::BackendState::DRAINING,
-                             lb::BackendState::UNKNOWN}) {
+    for (const auto state :
+         {lb::BackendState::UNHEALTHY, lb::BackendState::DRAINING, lb::BackendState::UNKNOWN}) {
         ASSERT_TRUE(registry.setState("A", state));
         EXPECT_TRUE(registry.snapshot()->empty());
         ASSERT_TRUE(registry.setState("A", lb::BackendState::HEALTHY));
@@ -104,11 +105,11 @@ TEST(Registry, InvalidReloadLeavesMembershipAndPublishedSnapshotIntact) {
     lb::BackendRegistry registry(BACKENDS);
     ASSERT_TRUE(registry.setState("A", lb::BackendState::HEALTHY));
     const auto before = registry.snapshot();
-    for (const auto& invalid : std::vector<std::vector<lb::BackendConfig>>{
-             {{"A", "localhost", 1}, {"A", "localhost", 2}},
-             {{"", "localhost", 1}},
-             {{"A", "", 1}},
-             {{"A", "localhost", 0}}}) {
+    for (const auto& invalid :
+         std::vector<std::vector<lb::BackendConfig>>{{{"A", "localhost", 1}, {"A", "localhost", 2}},
+                                                     {{"", "localhost", 1}},
+                                                     {{"A", "", 1}},
+                                                     {{"A", "localhost", 0}}}) {
         EXPECT_THROW(registry.replaceBackends(invalid), std::invalid_argument);
         EXPECT_EQ(registry.snapshot(), before);
         EXPECT_EQ(registry.findBackend("A"), before->front());

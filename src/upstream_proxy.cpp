@@ -38,7 +38,8 @@ struct CancelDeadline {
         // Close before returning the caller's admission lease, even if the
         // canceled timer handler still retains this Operation temporarily.
         operation->stream.close();
-        if (connected) backend->openConnections.fetch_sub(1, std::memory_order_relaxed);
+        if (connected)
+            backend->openConnections.fetch_sub(1, std::memory_order_relaxed);
         if (cancellation) {
             cancellation->setAction({});
         }
@@ -46,9 +47,9 @@ struct CancelDeadline {
 };
 } // namespace
 
-asio::awaitable<UpstreamResult> forwardToBackend(ProxyRequest request, BackendPtr backend,
-                                              const ProxyOptions& options, unsigned responseTimeoutMs,
-                                              std::shared_ptr<UpstreamCancellation> cancellation) {
+asio::awaitable<UpstreamResult>
+forwardToBackend(ProxyRequest request, BackendPtr backend, const ProxyOptions& options,
+                 unsigned responseTimeoutMs, std::shared_ptr<UpstreamCancellation> cancellation) {
     const auto executor = co_await asio::this_coro::executor;
     const auto operation = std::make_shared<Operation>(executor);
     CancelDeadline guard{operation, cancellation, backend};
@@ -80,19 +81,23 @@ asio::awaitable<UpstreamResult> forwardToBackend(ProxyRequest request, BackendPt
         // Numeric endpoints avoid the system resolver and its platform-specific
         // getaddrinfo cancellation/teardown latency entirely.
         endpoints = co_await operation->resolver.async_resolve(
-            backend->host, std::to_string(backend->port), asio::redirect_error(asio::use_awaitable, error));
+            backend->host, std::to_string(backend->port),
+            asio::redirect_error(asio::use_awaitable, error));
     }
     if (!error && !operation->timedOut && !cancelled()) {
         operation->stage = UpstreamStage::CONNECT;
         operation->stream.expires_after(std::chrono::milliseconds(options.connectTimeoutMs));
         if (!addressError) {
-            co_await operation->stream.async_connect(tcp::endpoint(address, backend->port),
+            co_await operation->stream.async_connect(
+                tcp::endpoint(address, backend->port),
                 asio::redirect_error(asio::use_awaitable, error));
         } else {
-            co_await operation->stream.async_connect(endpoints, asio::redirect_error(asio::use_awaitable, error));
+            co_await operation->stream.async_connect(
+                endpoints, asio::redirect_error(asio::use_awaitable, error));
         }
     }
-    if (!error && operation->stream.socket().is_open() && operation->stage == UpstreamStage::CONNECT) {
+    if (!error && operation->stream.socket().is_open() &&
+        operation->stage == UpstreamStage::CONNECT) {
         guard.connected = true;
         backend->openConnections.fetch_add(1, std::memory_order_relaxed);
     }
@@ -103,7 +108,8 @@ asio::awaitable<UpstreamResult> forwardToBackend(ProxyRequest request, BackendPt
         } else {
             operation->stream.expires_after(std::chrono::milliseconds(options.writeTimeoutMs));
         }
-        co_await http::async_write(operation->stream, request, asio::redirect_error(asio::use_awaitable, error));
+        co_await http::async_write(operation->stream, request,
+                                   asio::redirect_error(asio::use_awaitable, error));
     }
     beast::flat_buffer buffer(options.maxBodyBytes + options.maxHeaderBytes);
     const bool head = request.method() == http::verb::head;
@@ -113,13 +119,14 @@ asio::awaitable<UpstreamResult> forwardToBackend(ProxyRequest request, BackendPt
             operation->stream.expires_after(std::chrono::milliseconds(options.readTimeoutMs));
         }
     }
-    for (int informational = 0; !error && !operation->timedOut && !cancelled() && informational < 8; ++informational) {
+    for (int informational = 0; !error && !operation->timedOut && !cancelled() && informational < 8;
+         ++informational) {
         http::response_parser<http::string_body> parser;
         parser.body_limit(options.maxBodyBytes);
         parser.header_limit(options.maxHeaderBytes);
         parser.skip(head);
         co_await http::async_read(operation->stream, buffer, parser,
-                                 asio::redirect_error(asio::use_awaitable, error));
+                                  asio::redirect_error(asio::use_awaitable, error));
         if (!error) {
             auto response = parser.release();
             if (operation->timedOut || cancelled()) {
@@ -133,17 +140,21 @@ asio::awaitable<UpstreamResult> forwardToBackend(ProxyRequest request, BackendPt
             }
         }
     }
-    const auto failure = cancelled() ? UpstreamError::CANCELLED
-                        : operation->timedOut || error == beast::error::timeout ||
-                                 error == asio::error::timed_out
-                             ? UpstreamError::TIMEOUT
-                             : UpstreamError::BAD_GATEWAY;
-    const auto reason = failure == UpstreamError::TIMEOUT ? UpstreamReason::TIMEOUT
-        : error == asio::error::connection_reset || error == asio::error::connection_aborted ? UpstreamReason::RESET
+    const auto failure =
+        cancelled() ? UpstreamError::CANCELLED
+        : operation->timedOut || error == beast::error::timeout || error == asio::error::timed_out
+            ? UpstreamError::TIMEOUT
+            : UpstreamError::BAD_GATEWAY;
+    const auto reason =
+        failure == UpstreamError::TIMEOUT ? UpstreamReason::TIMEOUT
+        : error == asio::error::connection_reset || error == asio::error::connection_aborted
+            ? UpstreamReason::RESET
         : operation->stage == UpstreamStage::RESOLVE ? UpstreamReason::RESOLVE
         : operation->stage == UpstreamStage::CONNECT ? UpstreamReason::CONNECT
-        : error.category() == http::make_error_code(http::error::bad_method).category() || !error ? UpstreamReason::PROTOCOL
-        : UpstreamReason::TRANSPORT;
-    co_return UpstreamResult{ProxyResponse{}, failure, operation->stage, operation->timedOut, reason};
+        : error.category() == http::make_error_code(http::error::bad_method).category() || !error
+            ? UpstreamReason::PROTOCOL
+            : UpstreamReason::TRANSPORT;
+    co_return UpstreamResult{ProxyResponse{}, failure, operation->stage, operation->timedOut,
+                             reason};
 }
 } // namespace lb

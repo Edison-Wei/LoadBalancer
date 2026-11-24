@@ -13,10 +13,11 @@ struct ProxyState;
 /// Fixed series only. The short histogram lock keeps buckets/sum/count coherent;
 /// rendering and socket I/O happen outside it. Unknown methods map to OTHER.
 class MetricsRegistry {
-public:
+  public:
     void completed(std::string_view method, unsigned status, double seconds);
     [[nodiscard]] std::string render(const ProxyState& state) const;
-private:
+
+  private:
     mutable std::mutex m_mutex;
     std::array<std::array<std::uint64_t, 5>, 8> m_responses{};
     std::array<std::uint64_t, 11> m_buckets{};

@@ -9,7 +9,7 @@ namespace lb {
 /// Buffer each event before a short output lock; worker logs cannot interleave.
 /// Uses standard streams/mutex because this Apple library lacks osyncstream.
 class LogLine : public std::ostringstream {
-public:
+  public:
     ~LogLine() noexcept {
         try {
             auto text = str();
@@ -23,7 +23,8 @@ public:
             // Logging must not throw while another operation is unwinding.
         }
     }
-private:
+
+  private:
     static std::mutex& outputMutex() {
         static std::mutex mutex;
         return mutex;
